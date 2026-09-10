@@ -1,7 +1,7 @@
 {
-  "name": "GKD Mobility • Soluções em Mensagens",
-  "short_name": "GKD Mobility",
-  "description": "Plataforma de disparo e agendamento de mensagens personalizadas no WhatsApp com foco em soluções de mobilidade.",
+  "name": "Messenger",
+  "short_name": "Messenger",
+  "description": "Plataforma de disparo e agendamento de mensagens personalizadas no WhatsApp e modelos inteligentes.",
   "start_url": "/",
   "display": "standalone",
   "orientation": "portrait",
