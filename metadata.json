@@ -1,0 +1,6 @@
+{
+  "name": "GKD Mobility",
+  "description": "Plataforma de disparo e agendamento de mensagens personalizadas no WhatsApp com foco em soluções de mobilidade, suporte VCF e modelos inteligentes.",
+  "requestFramePermissions": ["camera", "microphone", "geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
