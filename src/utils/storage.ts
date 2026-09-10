@@ -805,7 +805,17 @@ export function restoreFromBackup(backupData: any): { success: boolean; error?: 
       throw new Error('Formato de backup inválido');
     }
 
-    // List of keys we can restore
+    if (backupData.rawLocalStorage && typeof backupData.rawLocalStorage === 'object') {
+      Object.entries(backupData.rawLocalStorage).forEach(([key, val]) => {
+        if (typeof val === 'string') {
+          localStorage.setItem(key, val);
+        } else {
+          localStorage.setItem(key, JSON.stringify(val));
+        }
+      });
+    }
+
+    // List of keys we can restore explicitly
     const keysToRestore = [
       { backupKey: 'contacts', storageKey: STORAGE_KEYS.CONTACTS },
       { backupKey: 'templates', storageKey: STORAGE_KEYS.TEMPLATES },
@@ -820,6 +830,8 @@ export function restoreFromBackup(backupData: any): { success: boolean; error?: 
         saveToStorage(storageKey, backupData[backupKey]);
       }
     });
+
+    invalidateAllStorageCaches();
 
     return { success: true };
   } catch (err: any) {

@@ -87,8 +87,20 @@ export const HelpModal: React.FC<HelpModalProps> = ({
 
   const handleSaveAllJson = () => {
     try {
+      const allLocalStorageData: Record<string, any> = {};
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key) {
+          try {
+            allLocalStorageData[key] = JSON.parse(localStorage.getItem(key) || '');
+          } catch {
+            allLocalStorageData[key] = localStorage.getItem(key);
+          }
+        }
+      }
+
       const backupData = {
-        appName: 'GKD Messenger',
+        appName: 'Messenger',
         version: '2.5',
         exportDate: new Date().toISOString(),
         stats: {
@@ -105,19 +117,20 @@ export const HelpModal: React.FC<HelpModalProps> = ({
         templates,
         groups,
         settings,
+        rawLocalStorage: allLocalStorageData,
       };
 
       const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `backup_completo_gkdmessenger_${new Date().toISOString().slice(0, 10)}.json`;
+      link.download = `backup_total_messenger_${new Date().toISOString().slice(0, 10)}.json`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
 
-      setDownloadSuccess('Backup JSON completo salvo com sucesso no seu dispositivo!');
+      setDownloadSuccess('Backup 100% completo salvo com sucesso! (Contatos, histórico diário/mensal e configurações)');
       setTimeout(() => setDownloadSuccess(null), 4000);
     } catch (err) {
       console.error('Erro ao salvar JSON:', err);
@@ -295,7 +308,7 @@ export const HelpModal: React.FC<HelpModalProps> = ({
               </p>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2">
               <input
                 type="file"
                 ref={fileInputRef}
@@ -306,41 +319,41 @@ export const HelpModal: React.FC<HelpModalProps> = ({
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="bg-[#15181E] hover:bg-[#1F2229] text-gray-200 border border-[#2A2E39] px-3.5 py-1.5 rounded-lg text-xs font-extrabold uppercase tracking-wider flex items-center space-x-1.5 transition-all cursor-pointer"
+                className="bg-[#15181E] hover:bg-[#1F2229] text-gray-200 border border-[#2A2E39] px-3 py-2 rounded-lg text-xs font-extrabold uppercase tracking-wider flex items-center justify-center space-x-1.5 transition-all cursor-pointer"
                 title="Importa um arquivo de backup JSON salvo anteriormente"
               >
-                <Upload className="w-3.5 h-3.5 text-[#A88B4B]" />
-                <span>Importar Backup</span>
+                <Upload className="w-3.5 h-3.5 text-[#A88B4B] shrink-0" />
+                <span className="truncate">Importar</span>
               </button>
 
               <button
                 type="button"
                 onClick={handleSaveAllJson}
-                className="bg-[#A88B4B] hover:bg-[#C5A968] text-slate-950 px-3.5 py-1.5 rounded-lg text-xs font-extrabold uppercase tracking-wider flex items-center space-x-1.5 shadow-md transition-all cursor-pointer"
+                className="bg-[#A88B4B] hover:bg-[#C5A968] text-slate-950 px-3 py-2 rounded-lg text-xs font-extrabold uppercase tracking-wider flex items-center justify-center space-x-1.5 shadow-md transition-all cursor-pointer col-span-2 sm:col-span-1"
                 title="Baixa todos os contatos, histórico, campanhas, modelos e configurações em formato JSON"
               >
-                <Download className="w-3.5 h-3.5" />
-                <span>Salvar Tudo (JSON)</span>
+                <Download className="w-3.5 h-3.5 shrink-0" />
+                <span className="truncate">Salvar Tudo (JSON)</span>
               </button>
 
               <button
                 type="button"
                 onClick={handleExportCsv}
-                className="bg-[#15181E] hover:bg-[#1F2229] text-gray-200 border border-[#2A2E39] px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center space-x-1.5 transition-all cursor-pointer"
+                className="bg-[#15181E] hover:bg-[#1F2229] text-gray-200 border border-[#2A2E39] px-3 py-2 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center justify-center space-x-1.5 transition-all cursor-pointer"
                 title="Exporta dados em planilha CSV"
               >
-                <FileText className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Planilha CSV</span>
+                <FileText className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                <span className="truncate">CSV</span>
               </button>
 
               <button
                 type="button"
                 onClick={handlePrintPdf}
-                className="bg-[#15181E] hover:bg-[#1F2229] text-gray-200 border border-[#2A2E39] px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center space-x-1.5 transition-all cursor-pointer"
+                className="bg-[#15181E] hover:bg-[#1F2229] text-gray-200 border border-[#2A2E39] px-3 py-2 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center justify-center space-x-1.5 transition-all cursor-pointer"
                 title="Gera relatório para imprimir ou salvar em PDF"
               >
-                <Printer className="w-3.5 h-3.5 text-amber-400" />
-                <span>Salvar PDF</span>
+                <Printer className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <span className="truncate">PDF</span>
               </button>
 
               {onOpenSaveAndReset && (
@@ -350,11 +363,11 @@ export const HelpModal: React.FC<HelpModalProps> = ({
                     onClose();
                     onOpenSaveAndReset();
                   }}
-                  className="bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center space-x-1.5 transition-all cursor-pointer"
+                  className="bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 px-3 py-2 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center justify-center space-x-1.5 transition-all cursor-pointer col-span-2"
                   title="Abrir Central de Salvamento e Redefinição de Ciclos"
                 >
-                  <Save className="w-3.5 h-3.5" />
-                  <span>Salvar & Zerar Ciclo</span>
+                  <Save className="w-3.5 h-3.5 shrink-0" />
+                  <span className="truncate">Salvar & Zerar Ciclo</span>
                 </button>
               )}
             </div>
