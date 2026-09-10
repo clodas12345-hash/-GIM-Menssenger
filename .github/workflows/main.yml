@@ -35,6 +35,9 @@ jobs:
       run: |
         # Sincroniza o Capacitor e cria a pasta android se não existir
         npx cap add android || true
+        # Gera os ícones personalizados a partir da logo
+        node generate-icons.cjs || true
+        npx @capacitor/assets generate --android || true
         npx cap sync android
 
     - name: Compilar APK (Gradle)
