@@ -448,7 +448,7 @@ export const PasteContactsModal: React.FC<PasteContactsModalProps> = ({
                 className="w-full bg-[#15181E] border border-[#2A2D35] rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none focus:border-[#A88B4B]"
               >
                 <option value="auto">✨ Detecção Automática</option>
-                <option value="Agenda de Contatos">Agenda de Contatos (Sem Campanha)</option>
+                <option value="Agenda de Contatos">Sem Campanha</option>
                 {groups.map(g => (
                   <option key={g.id} value={g.name}>{g.name}</option>
                 ))}

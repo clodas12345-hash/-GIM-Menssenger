@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react';
-import { Zap, Smartphone, History, CheckCircle2, AlertOctagon, Trash2 } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { Zap, Smartphone, History, CheckCircle2, AlertOctagon, Trash2, AlertTriangle, X } from 'lucide-react';
 import { DispatchLogItem, AppSettings, WhatsAppChip } from '../types';
 import { cleanChipName, calculateChipReleaseTimes } from '../utils/whatsapp';
 
@@ -13,6 +13,10 @@ interface RealTimeCounterProps {
 
 export const RealTimeCounter: React.FC<RealTimeCounterProps> = React.memo(({ logs, settings, compact = false, onResetChip, onResetAll }) => {
   const allChips = useMemo(() => settings.chips || [], [settings.chips]);
+  
+  // Modal states for confirmation
+  const [chipToReset, setChipToReset] = useState<{ id: string; name: string } | null>(null);
+  const [showResetAllConfirm, setShowResetAllConfirm] = useState(false);
   
   // Update sliding window every 60s
   const [nowMs, setNowMs] = React.useState(Date.now());
@@ -121,6 +125,18 @@ export const RealTimeCounter: React.FC<RealTimeCounterProps> = React.memo(({ log
 
   return (
     <div className="space-y-4">
+      {onResetAll && chipMetrics.length > 1 && (
+        <div className="flex justify-end pb-1">
+          <button
+            type="button"
+            onClick={() => setShowResetAllConfirm(true)}
+            className="px-3 py-1.5 bg-red-500/10 hover:bg-red-600 text-red-400 hover:text-white border border-red-500/20 rounded-xl text-xs font-bold transition-all flex items-center space-x-1.5 active:scale-95 cursor-pointer shadow-sm"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            <span>Zerar Todos os Contadores</span>
+          </button>
+        </div>
+      )}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {chipMetrics.map(chip => {
           const color = chip.color;
@@ -140,14 +156,15 @@ export const RealTimeCounter: React.FC<RealTimeCounterProps> = React.memo(({ log
               {/* Trash icon for reset in top right */}
               {onResetChip && (
                 <button
+                  type="button"
                   onClick={(e) => {
                     e.stopPropagation();
-                    onResetChip(chip.id);
+                    setChipToReset({ id: chip.id, name: cleanChipName(chip.name) });
                   }}
-                  className="absolute top-3 right-3 z-30 p-2 bg-red-500/20 hover:bg-red-600 text-red-400 hover:text-white border border-red-500/30 rounded-xl transition-all shadow-lg active:scale-90"
+                  className="absolute top-3 right-3 z-30 p-2.5 bg-red-500/10 hover:bg-red-600 text-red-400 hover:text-white border border-red-500/20 rounded-xl transition-all shadow-md active:scale-95 cursor-pointer"
                   title="Zerar este contador"
                 >
-                  <Trash2 className="w-3.5 h-3.5" />
+                  <Trash2 className="w-4 h-4" />
                 </button>
               )}
 
@@ -300,6 +317,119 @@ export const RealTimeCounter: React.FC<RealTimeCounterProps> = React.memo(({ log
           </div>
         );
       })}
+      {/* POP-UP MODAL DE CONFIRMAÇÃO DE ZERAR CONTADOR */}
+      {chipToReset && (
+        <div 
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200"
+          onClick={() => setChipToReset(null)}
+        >
+          <div 
+            className="bg-[#15181E] border border-red-500/40 rounded-2xl p-6 max-w-sm w-full space-y-5 shadow-2xl animate-in zoom-in-95 duration-200 relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setChipToReset(null)}
+              className="absolute top-4 right-4 p-1.5 text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 rounded-lg transition-all"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="flex items-center space-x-3">
+              <div className="p-3 bg-red-500/10 rounded-2xl border border-red-500/30 text-red-400 shrink-0">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h3 className="text-base font-bold text-white tracking-tight">Zerar Contador?</h3>
+                <p className="text-xs text-amber-400 font-semibold truncate">Chip: {chipToReset.name}</p>
+              </div>
+            </div>
+
+            <p className="text-xs text-gray-300 leading-relaxed bg-[#0A0C10] p-3.5 rounded-xl border border-white/5">
+              Tem certeza que deseja zerar a contagem em tempo real deste chip? O limite de disparos efetuados nas últimas 24 horas será redefinido para zero.
+            </p>
+
+            <div className="flex items-center space-x-2 pt-1">
+              <button
+                type="button"
+                onClick={() => setChipToReset(null)}
+                className="flex-1 py-2.5 px-4 bg-[#1C1F26] hover:bg-[#252932] text-gray-300 rounded-xl text-xs font-bold transition-all border border-white/10 active:scale-95 cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (onResetChip) {
+                    onResetChip(chipToReset.id);
+                  }
+                  setChipToReset(null);
+                }}
+                className="flex-1 py-2.5 px-4 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs font-extrabold transition-all shadow-lg shadow-red-600/30 active:scale-95 cursor-pointer flex items-center justify-center space-x-1.5"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>Sim, Zerar</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* POP-UP MODAL DE CONFIRMAÇÃO DE ZERAR TODOS */}
+      {showResetAllConfirm && (
+        <div 
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200"
+          onClick={() => setShowResetAllConfirm(false)}
+        >
+          <div 
+            className="bg-[#15181E] border border-red-500/40 rounded-2xl p-6 max-w-sm w-full space-y-5 shadow-2xl animate-in zoom-in-95 duration-200 relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setShowResetAllConfirm(false)}
+              className="absolute top-4 right-4 p-1.5 text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 rounded-lg transition-all"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="flex items-center space-x-3">
+              <div className="p-3 bg-red-500/10 rounded-2xl border border-red-500/30 text-red-400 shrink-0">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h3 className="text-base font-bold text-white tracking-tight">Zerar Todos os Contadores?</h3>
+                <p className="text-xs text-red-400 font-semibold">Ação em Lote</p>
+              </div>
+            </div>
+
+            <p className="text-xs text-gray-300 leading-relaxed bg-[#0A0C10] p-3.5 rounded-xl border border-white/5">
+              Tem certeza que deseja zerar a contagem de disparos de TODOS os chips registrados de uma só vez?
+            </p>
+
+            <div className="flex items-center space-x-2 pt-1">
+              <button
+                type="button"
+                onClick={() => setShowResetAllConfirm(false)}
+                className="flex-1 py-2.5 px-4 bg-[#1C1F26] hover:bg-[#252932] text-gray-300 rounded-xl text-xs font-bold transition-all border border-white/10 active:scale-95 cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (onResetAll) {
+                    onResetAll();
+                  }
+                  setShowResetAllConfirm(false);
+                }}
+                className="flex-1 py-2.5 px-4 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs font-extrabold transition-all shadow-lg shadow-red-600/30 active:scale-95 cursor-pointer flex items-center justify-center space-x-1.5"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>Zerar Todos</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   </div>
 );

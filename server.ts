@@ -151,9 +151,14 @@ function classifyContactsLocally(items: any[], knownCategories: string[] = []) {
     const id = item.id !== undefined ? item.id : idx;
 
     let cleanName = raw.trim();
+    // Remove dots and sequence tags like T18, T19, T20, .T18_
     cleanName = cleanName.replace(/^[.\s_-]+/, '');
+    cleanName = cleanName.replace(/(?:^|[\s\.\-_\|\[\(])T[\_\-\s]?\d{1,3}(?:$|[\s\.\-_\|\]\)])/gi, ' ').trim();
 
     let category = item.currentGroup || 'Agenda de Contatos';
+    if (/^T[\_\-\s]?\d{1,3}$/i.test(category)) {
+      category = 'Agenda de Contatos';
+    }
     let isNewCategory = false;
     let chipId = 'chip_2';
     let chipName = 'WhatsApp Suporte';
@@ -175,26 +180,31 @@ function classifyContactsLocally(items: any[], knownCategories: string[] = []) {
       categoryDetails['value'] = '0%';
       cleanName = cleanName.replace(/[-_]?(TX0|TXO|TAXA\s*ZERO)[-_]?(.*)$/i, '').trim();
     }
-    // 2. Corre e Ganhe (CG05, CG5, CG10, etc.)
-    else if (/CG\s*0?5|CG\s*10|CORRE\s*E\s*GANHE/i.test(raw)) {
-      if (/100/i.test(raw)) {
-        category = 'CG05/100';
-        customFields['Meta Corridas'] = '5 corridas';
-        customFields['Bônus'] = 'R$ 100';
-      } else if (/CG\s*10/i.test(raw)) {
-        category = 'CG10';
+    // 2. Corre e Ganhe (CG05/50, CG05/100, CG10/150, CG10/100, etc.)
+    else if (/CG|CORRE\s*E\s*GANHE/i.test(raw)) {
+      const cgMatch = upper.match(/CG\s*(\d+)(?:\s*[_\/\-\$]*\s*(\d+))?/i);
+      const num = cgMatch ? cgMatch[1] : '';
+      const val = cgMatch ? cgMatch[2] : '';
+
+      if (num === '10') {
+        const value = val || '150';
+        category = `CG 10/${value}`;
         customFields['Meta Corridas'] = '10 corridas';
-        customFields['Bônus'] = 'R$ 100';
-      } else {
-        category = 'CG05/50';
+        customFields['Bônus'] = `R$ ${value}`;
+      } else if (num === '05' || num === '5') {
+        const value = val || '100';
+        category = `CG 05/${value}`;
         customFields['Meta Corridas'] = '5 corridas';
-        customFields['Bônus'] = 'R$ 50';
+        customFields['Bônus'] = `R$ ${value}`;
+      } else {
+        category = 'Corre e Ganhe';
+        customFields['Campanha'] = 'Corre e Ganhe';
       }
       customFields['Campanha'] = 'Corre e Ganhe';
       chipId = 'chip_1';
       chipName = 'WhatsApp Business';
       categoryDetails['type'] = 'corre_e_ganhe';
-      cleanName = cleanName.replace(/[-_]?(CG\s*\d+|CORRE\s*E\s*GANHE)[-_]?(.*)$/i, '').trim();
+      cleanName = cleanName.replace(/[-_]?(CG\s*\d*[\/\-\_\$\s]*\d*|CORRE\s*E\s*GANHE)[-_]?(.*)$/i, '').trim();
     }
     // 3. Correção / Valores
     else if (/CORR|CORRECAO|R\$\s*\d+/i.test(raw)) {
@@ -472,6 +482,15 @@ REGRAS DE CLASSIFICAÇÃO E EXTRAÇÃO DE NOVOS CAMPOS:
 
 7. **Detecção de Gênero**:
    - "homem" ou "mulher" baseado no primeiro nome brasileiro.
+
+8. **Desconsiderar Códigos de Lote/Turma/Sequência (T18, T19, T20, T01, T02, etc.)**:
+   - Códigos no formato T18, T19, T20, T01, T02 são apenas números de sequência/lote e NÃO devem ser usados como nome de categoria nem criados como grupos.
+   - Remova esse prefixo/sufixo do nome limpo (ex: ".T18_Aline Alves" -> "Aline Alves").
+   - Se o contato não possuir outra tag promocional (como CG ou TX0), a categoria DEVE SER "Agenda de Contatos".
+
+9. **CIDADES, NOMES PRÓPRIOS E 'IMPORTADOS' NÃO SÃO CATEGORIAS**:
+   - Nomes de cidades (Aparecida de Goiânia, Goiânia, Trindade, Guapó, Anápolis, Senador Canedo, etc.), nomes de pessoas (Glauber, Fabricio, etc.) ou rótulos de importação ("Importados", "VCF") NUNCA devem ser usados como categoria.
+   - Se o contato contiver apenas uma cidade ou nome de pessoa na tag, remova do nome limpo e atribua a categoria "Agenda de Contatos".
 
 Retorne EXCLUSIVAMENTE um JSON no seguinte formato:
 {

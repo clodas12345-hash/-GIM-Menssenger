@@ -43,10 +43,10 @@ import {
 } from 'lucide-react';
 import { Contact, ContactGroup, DispatchLogItem, ScheduledCampaign, AppSettings, ProjectArchive, MessageTemplate, CardItem } from '../types';
 import { formatPhoneDisplay, cleanPhoneNumber, downloadVcfFile, parseVcfContent } from '../utils/vcfParser';
-import { cleanChipName, getExpectedGroup, safeConfirm, detectGenderFromName, replaceTemplateVariables, matchPhoneNumber, matchContact, normalizeSearchText } from '../utils/whatsapp';
+import { cleanChipName, getExpectedGroup, safeConfirm, detectGenderFromName, replaceTemplateVariables, matchPhoneNumber, matchContact, normalizeSearchText, isCategorySimilar } from '../utils/whatsapp';
 import { isContactedToday, getTemplates, loadFromStorage, getSettings, saveSettings, getTodayDateString } from '../utils/storage';
 import { isContactSkipped, isNotSentInLastThreeDays, getRegisteredChipForGroup } from '../utils/rules';
-import { enrichContacts } from '../utils/contactProcessor';
+import { enrichContacts, processContactName, isIgnoredSequenceTag, isInvalidCategoryName } from '../utils/contactProcessor';
 import { getChipTheme } from '../utils/chipTheme';
 import { PasteContactsModal } from './PasteContactsModal';
 import { ScanContactsModal } from './ScanContactsModal';
@@ -181,17 +181,58 @@ export const ContactsView: React.FC<ContactsViewProps> = React.memo(({
   const [notification, setNotification] = useState<string>('');
   const vcfFileInputRef = useRef<HTMLInputElement>(null);
 
-  // Available templates and cards for Quick Scheduling
-  const availableTemplates: MessageTemplate[] = useMemo(() => getTemplates(), []);
-  const availableCards: CardItem[] = useMemo(() => loadFromStorage<CardItem[]>('gkd_cards_album_v1', []), []);
-
-  // Set default template when quick schedule modal opens
-  useEffect(() => {
-    if (isQuickScheduleModalOpen && availableTemplates.length > 0 && !quickTemplateId) {
-      setQuickTemplateId(availableTemplates[0].id);
-      setQuickCustomTitle(`Disparo Rápido (${new Date().toLocaleDateString('pt-BR')})`);
+  // Selected contacts group for similarity matching
+  const activeSelectedGroup = useMemo(() => {
+    if (selectedIds.length > 0) {
+      const selectedContacts = contacts.filter(c => selectedIds.includes(c.id));
+      const grps = new Set(selectedContacts.map(c => c.group || 'Agenda de Contatos'));
+      if (grps.size === 1) return Array.from(grps)[0];
     }
-  }, [isQuickScheduleModalOpen, availableTemplates]);
+    return selectedGroupFilter !== 'all' ? selectedGroupFilter : '';
+  }, [selectedIds, contacts, selectedGroupFilter]);
+
+  // Available templates and cards for Quick Scheduling sorted by category similarity
+  const availableTemplates: MessageTemplate[] = useMemo(() => {
+    const raw = getTemplates();
+    if (!activeSelectedGroup || activeSelectedGroup === 'all') return raw;
+    return [...raw].sort((a, b) => {
+      const matchA = isCategorySimilar(a.category, activeSelectedGroup) || isCategorySimilar(a.title, activeSelectedGroup);
+      const matchB = isCategorySimilar(b.category, activeSelectedGroup) || isCategorySimilar(b.title, activeSelectedGroup);
+      if (matchA && !matchB) return -1;
+      if (!matchA && matchB) return 1;
+      return 0;
+    });
+  }, [activeSelectedGroup]);
+
+  const availableCards: CardItem[] = useMemo(() => {
+    const raw = loadFromStorage<CardItem[]>('gkd_cards_album_v1', []);
+    if (!activeSelectedGroup || activeSelectedGroup === 'all') return raw;
+    return [...raw].sort((a, b) => {
+      const matchA = isCategorySimilar(a.category, activeSelectedGroup) || isCategorySimilar(a.title, activeSelectedGroup);
+      const matchB = isCategorySimilar(b.category, activeSelectedGroup) || isCategorySimilar(b.title, activeSelectedGroup);
+      if (matchA && !matchB) return -1;
+      if (!matchA && matchB) return 1;
+      return 0;
+    });
+  }, [activeSelectedGroup]);
+
+  // Set default template and auto-select matching card when quick schedule modal opens
+  useEffect(() => {
+    if (isQuickScheduleModalOpen && availableTemplates.length > 0) {
+      if (!quickTemplateId) {
+        setQuickTemplateId(availableTemplates[0].id);
+      }
+      if (!quickCustomTitle) {
+        setQuickCustomTitle(`Disparo Rápido (${new Date().toLocaleDateString('pt-BR')})`);
+      }
+      if (activeSelectedGroup && availableCards.length > 0 && !quickCardId) {
+        const matchingCard = availableCards.find(c => isCategorySimilar(c.category, activeSelectedGroup) || isCategorySimilar(c.title, activeSelectedGroup));
+        if (matchingCard) {
+          setQuickCardId(matchingCard.id);
+        }
+      }
+    }
+  }, [isQuickScheduleModalOpen, availableTemplates, availableCards, activeSelectedGroup]);
 
   const showNotification = React.useCallback((msg: string) => {
     setNotification(msg);
@@ -669,13 +710,19 @@ export const ContactsView: React.FC<ContactsViewProps> = React.memo(({
     const hasCustomFields = Object.keys(customFieldsObj).length > 0;
 
     if (editingContact) {
+      const { cleanName, detectedGroup } = processContactName(formName);
+      const isIgnored = isIgnoredSequenceTag(formGroup.trim());
+      const isGenericGroup = isIgnored || !formGroup.trim() || formGroup.trim() === 'Agenda de Contatos' || formGroup.trim() === 'Geral' || formGroup.trim() === 'sem_campanha';
+      let finalGroup = (detectedGroup && isGenericGroup) ? detectedGroup : (isIgnored ? 'Agenda de Contatos' : (formGroup.trim() || detectedGroup || 'Agenda de Contatos'));
+      if (isIgnoredSequenceTag(finalGroup)) finalGroup = 'Agenda de Contatos';
+
       const updated: Contact = {
         ...editingContact,
-        name: formName.trim(),
+        name: cleanName || formName.trim(),
         phone: cleanedPhone,
         email: formEmail.trim() || undefined,
         company: formCompany.trim() || undefined,
-        group: formGroup.trim() || 'Agenda de Contatos',
+        group: finalGroup,
         chipId: formChipId,
         chipName,
         notes: formNotes.trim() || undefined,
@@ -684,13 +731,19 @@ export const ContactsView: React.FC<ContactsViewProps> = React.memo(({
       if (onUpdateContact) onUpdateContact(updated);
       showNotification(`✅ Contato "${updated.name}" atualizado!`);
     } else {
+      const { cleanName, detectedGroup } = processContactName(formName);
+      const isIgnored = isIgnoredSequenceTag(formGroup.trim());
+      const isGenericGroup = isIgnored || !formGroup.trim() || formGroup.trim() === 'Agenda de Contatos' || formGroup.trim() === 'Geral' || formGroup.trim() === 'sem_campanha';
+      let finalGroup = (detectedGroup && isGenericGroup) ? detectedGroup : (isIgnored ? 'Agenda de Contatos' : (formGroup.trim() || detectedGroup || 'Agenda de Contatos'));
+      if (isIgnoredSequenceTag(finalGroup)) finalGroup = 'Agenda de Contatos';
+
       const newContact: Contact = {
         id: `c_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-        name: formName.trim(),
+        name: cleanName || formName.trim(),
         phone: cleanedPhone,
         email: formEmail.trim() || undefined,
         company: formCompany.trim() || undefined,
-        group: formGroup.trim() || 'Agenda de Contatos',
+        group: finalGroup,
         chipId: formChipId,
         chipName,
         notes: formNotes.trim() || undefined,
@@ -699,7 +752,7 @@ export const ContactsView: React.FC<ContactsViewProps> = React.memo(({
         createdAt: new Date().toISOString(),
       };
       onAddContact(newContact);
-      showNotification(`✅ Novo contato "${newContact.name}" cadastrado!`);
+      showNotification(`✅ Novo contato "${newContact.name}" cadastrado na categoria "${finalGroup}"!`);
     }
 
     setIsAddModalOpen(false);
@@ -958,13 +1011,13 @@ export const ContactsView: React.FC<ContactsViewProps> = React.memo(({
               className="w-full bg-[#161619] border border-[#262629] text-gray-300 text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:border-[#A88B4B] appearance-none cursor-pointer"
             >
               <option value="all">📂 Todos os Grupos ({totalContactsCount})</option>
-              <option value="sem_campanha">⚠️ Agenda / Sem Campanha ({contacts.filter(c => {
+              <option value="sem_campanha">⚠️ Sem Campanha ({contacts.filter(c => {
                 const grp = (c.group || '').toLowerCase();
-                return grp.includes('sem campanha') || grp.includes('agenda de contatos') || !c.group;
+                return grp.includes('sem campanha') || grp.includes('agenda de contatos') || !c.group || isInvalidCategoryName(c.group);
               }).length})</option>
               {groups.filter(g => {
                 const nameLower = g.name.toLowerCase();
-                return !nameLower.includes('sem campanha') && nameLower !== 'agenda de contatos';
+                return !nameLower.includes('sem campanha') && nameLower !== 'agenda de contatos' && !isInvalidCategoryName(g.name);
               }).map((g, idx) => {
                 const count = contacts.filter(c => (c.group || 'Agenda de Contatos').toLowerCase() === g.name.toLowerCase()).length;
                 return (
@@ -1550,6 +1603,17 @@ export const ContactsView: React.FC<ContactsViewProps> = React.memo(({
                   required
                   value={formName}
                   onChange={(e) => setFormName(e.target.value)}
+                  onBlur={() => {
+                    if (formName.trim()) {
+                      const { cleanName, detectedGroup } = processContactName(formName);
+                      if (cleanName && cleanName !== formName) {
+                        setFormName(cleanName);
+                      }
+                      if (detectedGroup && !isIgnoredSequenceTag(detectedGroup) && (!formGroup.trim() || formGroup === 'Agenda de Contatos' || formGroup === 'Geral' || formGroup === 'sem_campanha' || isIgnoredSequenceTag(formGroup))) {
+                        setFormGroup(detectedGroup);
+                      }
+                    }
+                  }}
                   placeholder="Ex: João Silva_Tx0_14/08 ou Pedro_CORR_50"
                   className="w-full bg-[#161619] border border-[#262629] rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#A88B4B]"
                 />

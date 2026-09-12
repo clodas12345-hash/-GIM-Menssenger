@@ -42,7 +42,7 @@ import {
 import { buildWhatsAppLink, openWhatsAppLink, replaceTemplateVariables, cleanChipName, getExpectedGroup, calculateChipReleaseTimes, formatReleaseTime } from './utils/whatsapp';
 import { cleanPhoneNumber } from './utils/vcfParser';
 import { checkSendingRules } from './utils/rules';
-import { processContactName, enrichContacts } from './utils/contactProcessor';
+import { processContactName, enrichContacts, isIgnoredSequenceTag, isInvalidCategoryName } from './utils/contactProcessor';
 import { Send, X, Bell, CheckCircle2, AlertCircle, Shield } from 'lucide-react';
 
 import { Navbar } from './components/Navbar';
@@ -347,15 +347,21 @@ export default function App() {
   // Initial Load - Optimized Group Recovery
   useEffect(() => {
     try {
-      const virtualWords = ['0º', '1º', '2º', '3º', '4º', '5º', '6+', '0°', '1°', '2°', 'envio'];
       let groupsChanged = false;
       
       const currentGroups = getGroups();
+      const activeContactGroupNames = new Set(contacts.map(c => (c.group || 'Agenda de Contatos').trim().toLowerCase()));
+
       let validGroups = currentGroups.filter(g => {
-        const lower = g.name.toLowerCase();
-        if (virtualWords.some(w => lower.includes(w))) {
+        const lower = g.name.trim().toLowerCase();
+        const isSystem = lower === 'agenda de contatos' || lower === 'geral' || lower === 'sem campanha' || lower === 'agenda de contatos (sem campanha)';
+        if (isInvalidCategoryName(g.name)) {
           groupsChanged = true;
           return false; 
+        }
+        if (!isSystem && !activeContactGroupNames.has(lower)) {
+          groupsChanged = true;
+          return false;
         }
         return true;
       });
@@ -372,7 +378,7 @@ export default function App() {
           if (processedGroupsInContacts.has(cLower)) continue;
           processedGroupsInContacts.add(cLower);
 
-          if (!virtualWords.some(w => cLower.includes(w))) {
+          if (!isInvalidCategoryName(cTrimmed)) {
             if (!existingGroupNames.has(cLower)) {
               existingGroupNames.add(cLower);
               newGroupsToAdd.push({
@@ -399,29 +405,67 @@ export default function App() {
     }
   }, []); // Run once on mount to avoid loops
 
-  // Migration: fix virtual categories
+  // Migration: fix invalid categories, cities, names, sequence tags & non-existent categories
   useEffect(() => {
+    if (!groups || groups.length === 0) return;
+
     let migrated = false;
-    const virtualWords = ['0º', '1º', '2º', '3º', '4º', '5º', '6+', '0°', '1°', '2°', 'envio'];
+    const validGroupSet = new Set(groups.map(g => g.name.trim().toLowerCase()));
+    validGroupSet.add('agenda de contatos');
+
     const updated = contacts.map(c => {
-      if (!c.group) return c;
-      const lower = c.group.toLowerCase();
-      if (virtualWords.some(w => lower.includes(w))) {
-        migrated = true;
-        return { ...c, group: 'Agenda de Contatos' };
+      const gRaw = (c.group || '').trim();
+      const lower = gRaw.toLowerCase();
+
+      const isInvalid = isInvalidCategoryName(gRaw);
+      const isNonExistent = !validGroupSet.has(lower);
+
+      if (isInvalid || isNonExistent) {
+        const { cleanName, detectedGroup } = processContactName(c.name);
+        const validDetected = detectedGroup && !isInvalidCategoryName(detectedGroup) ? detectedGroup : null;
+        const targetGroup = validDetected || 'Agenda de Contatos';
+
+        if (c.group !== targetGroup || (cleanName && cleanName !== c.name)) {
+          migrated = true;
+          return {
+            ...c,
+            name: cleanName || c.name,
+            group: targetGroup
+          };
+        }
       }
       return c;
     });
-    
+
     if (migrated) {
       setContacts(updated);
       saveContacts(updated);
     }
-  }, []);
+  }, [groups]);
 
   useEffect(() => {
     // Always start on dashboard / painel principal
     setActiveTab('dashboard');
+  }, []);
+
+  const syncGroupsWithContacts = React.useCallback((currentContacts: Contact[]) => {
+    setGroups((prevGroups) => {
+      const remainingGroupNames = new Set(
+        currentContacts.map((c) => (c.group || 'Agenda de Contatos').trim().toLowerCase())
+      );
+      const updatedGroups = prevGroups.filter((g) => {
+        const lower = g.name.trim().toLowerCase();
+        const isSystem =
+          lower === 'agenda de contatos' ||
+          lower === 'geral' ||
+          lower === 'sem campanha' ||
+          lower === 'agenda de contatos (sem campanha)';
+        if (isSystem) return true;
+        return remainingGroupNames.has(lower);
+      });
+      saveGroups(updatedGroups);
+      return updatedGroups;
+    });
   }, []);
 
   // Sync state changes to storage
@@ -429,6 +473,7 @@ export default function App() {
     const sorted = [...newContacts].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' }));
     setContacts(sorted);
     saveContacts(sorted);
+    syncGroupsWithContacts(sorted);
   };
 
   const updateTemplatesState = (newTemplates: MessageTemplate[]) => {
@@ -806,15 +851,48 @@ export default function App() {
 
   // Handlers for Contacts
   const handleAddSingleContact = React.useCallback((contact: Contact) => {
+    const { cleanName, detectedGroup } = processContactName(contact.name);
+
+    const isIgnored = isIgnoredSequenceTag(contact.group || '');
+    const isGenericGroup = isIgnored || 
+                           !contact.group || 
+                           contact.group === 'Geral' || 
+                           contact.group === 'Agenda de Contatos' || 
+                           contact.group === 'sem_campanha' ||
+                           contact.group.toLowerCase().includes('sem campanha');
+
+    let finalGroup = (detectedGroup && isGenericGroup) ? detectedGroup : (isIgnored ? 'Agenda de Contatos' : (contact.group || detectedGroup || 'Agenda de Contatos'));
+    if (isIgnoredSequenceTag(finalGroup)) {
+      finalGroup = 'Agenda de Contatos';
+    }
+
+    // Register group in state if new and not generic/ignored
+    if (finalGroup && finalGroup !== 'Geral' && finalGroup !== 'Agenda de Contatos' && !isIgnoredSequenceTag(finalGroup)) {
+      setGroups((prevGroups) => {
+        const existingLower = new Set(prevGroups.map((g) => g.name.toLowerCase()));
+        if (!existingLower.has(finalGroup.toLowerCase())) {
+          const gLower = finalGroup.toLowerCase();
+          const isCg = gLower.includes('corre e ganhe') || gLower.includes('cg');
+          const isTx0 = gLower.includes('taxa zero') || gLower.includes('tx0');
+          const newGrp: ContactGroup = {
+            id: `grp_auto_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+            name: finalGroup,
+            color: isCg ? 'bg-emerald-600' : isTx0 ? 'bg-blue-600' : 'bg-[#A88B4B]',
+          };
+          const mergedGroups = [...prevGroups, newGrp];
+          saveGroups(mergedGroups);
+          return mergedGroups;
+        }
+        return prevGroups;
+      });
+    }
+
     setContacts((prevContacts) => {
-      // Enrich the contact with cleaned name and detected group
-      const { cleanName, detectedGroup } = processContactName(contact.name);
-      
       const enrichedContact = {
         ...contact,
         name: cleanName,
-        group: detectedGroup || contact.group || 'Geral',
-        notes: (cleanName !== contact.name) 
+        group: finalGroup,
+        notes: (cleanName !== contact.name && !contact.notes?.includes(contact.name)) 
           ? `[Nome original: ${contact.name}] ${contact.notes || ''}`.trim()
           : contact.notes
       };
@@ -897,18 +975,20 @@ export default function App() {
       const targetId = String(id).trim();
       const updated = prev.filter((c) => String(c.id).trim() !== targetId);
       saveContacts(updated);
+      syncGroupsWithContacts(updated);
       return updated;
     });
-  }, []);
+  }, [syncGroupsWithContacts]);
 
   const handleDeleteMultipleContacts = React.useCallback((ids: string[]) => {
     const idSet = new Set(ids.map(id => String(id).trim()));
     setContacts((prev) => {
       const updated = prev.filter((c) => !idSet.has(String(c.id).trim()));
       saveContacts(updated);
+      syncGroupsWithContacts(updated);
       return updated;
     });
-  }, []);
+  }, [syncGroupsWithContacts]);
 
   const handleUpdateContact = React.useCallback((updatedContact: Contact) => {
     setContacts((prev) => {
@@ -930,7 +1010,8 @@ export default function App() {
   const handleReplaceAllContacts = React.useCallback((newList: Contact[]) => {
     setContacts(newList);
     saveContacts(newList);
-  }, []);
+    syncGroupsWithContacts(newList);
+  }, [syncGroupsWithContacts]);
 
   const handleDeleteGroup = React.useCallback((groupId: string) => {
     // Fallback: try finding by ID first, then by name (for legacy groups)

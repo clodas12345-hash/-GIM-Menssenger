@@ -167,16 +167,16 @@ export const ManageGroupsModal: React.FC<ManageGroupsModalProps> = ({
                           </div>
                         </div>
                         
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-1.5">
                           {deletingId === group.id ? (
-                            <div className="flex items-center gap-1 bg-red-950/40 border border-red-500/30 p-1 rounded-lg animate-in fade-in duration-200">
-                              <span className="text-[9px] font-bold text-red-200 uppercase px-1">Excluir?</span>
+                            <div className="flex items-center gap-2 bg-red-950/80 border border-red-500/50 p-1.5 rounded-xl animate-in fade-in duration-200">
+                              <span className="text-xs font-black text-red-200 uppercase px-1">Excluir?</span>
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   setDeletingId(null);
                                 }}
-                                className="px-2 py-1 bg-[#121215] hover:bg-[#1C1C20] text-gray-300 rounded text-[9px] font-bold transition-all"
+                                className="px-3 py-1.5 min-h-[36px] bg-[#121215] hover:bg-[#1C1C20] text-gray-200 rounded-lg text-xs font-bold transition-all border border-[#333338] active:scale-95 cursor-pointer"
                               >
                                 Não
                               </button>
@@ -186,7 +186,7 @@ export const ManageGroupsModal: React.FC<ManageGroupsModalProps> = ({
                                   onDeleteGroup(group.id);
                                   setDeletingId(null);
                                 }}
-                                className="px-2 py-1 bg-red-600 hover:bg-red-500 text-white rounded text-[9px] font-bold transition-all shadow-lg shadow-red-600/30"
+                                className="px-4 py-1.5 min-h-[36px] bg-red-600 hover:bg-red-500 text-white rounded-lg text-xs font-extrabold transition-all shadow-lg shadow-red-600/40 active:scale-95 cursor-pointer"
                               >
                                 Sim
                               </button>
@@ -197,17 +197,17 @@ export const ManageGroupsModal: React.FC<ManageGroupsModalProps> = ({
                                 <>
                                   <button
                                     onClick={() => startEdit(group)}
-                                    className="p-2 text-gray-500 hover:text-blue-400 hover:bg-blue-400/10 rounded-lg transition-colors"
+                                    className="p-2.5 text-gray-400 hover:text-blue-400 hover:bg-blue-400/10 rounded-xl transition-all min-w-[42px] min-h-[42px] flex items-center justify-center cursor-pointer"
                                     title="Editar Categoria"
                                   >
-                                    <Pencil className="w-4 h-4" />
+                                    <Pencil className="w-4.5 h-4.5" />
                                   </button>
                                   <button
                                     onClick={() => setDeletingId(group.id)}
-                                    className="p-2 text-gray-500 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors"
+                                    className="p-2.5 text-red-400 hover:text-white bg-red-500/10 hover:bg-red-600 rounded-xl transition-all min-w-[42px] min-h-[42px] flex items-center justify-center border border-red-500/20 shadow-sm active:scale-95 cursor-pointer"
                                     title="Excluir Categoria"
                                   >
-                                    <Trash2 className="w-4 h-4" />
+                                    <Trash2 className="w-4.5 h-4.5" />
                                   </button>
                                 </>
                               )}

@@ -27,7 +27,7 @@ import {
   Ban
 } from 'lucide-react';
 import { Contact, MessageTemplate, ScheduledCampaign, ContactGroup, CardItem, DispatchLogItem } from '../types';
-import { replaceTemplateVariables, formatPhoneDisplay, safeConfirm, cleanChipName, matchPhoneNumber, matchContact } from '../utils/whatsapp';
+import { replaceTemplateVariables, formatPhoneDisplay, safeConfirm, cleanChipName, matchPhoneNumber, matchContact, isCategorySimilar } from '../utils/whatsapp';
 import { isContactedToday, getSettings, loadFromStorage } from '../utils/storage';
 import { isContactSkipped, isNotSentInLastThreeDays, getRegisteredChipForGroup } from '../utils/rules';
 import { parseLocalDatetimeString, toDatetimeLocal, getTodayDateLocal, isWithinBusinessHours, clampDateToBusinessHours, advanceNextBusinessSlot } from '../utils/dateParser';
@@ -259,17 +259,44 @@ export const NewCampaignView: React.FC<NewCampaignViewProps> = React.memo(({
     }
   };
 
+  const [previewModalCard, setPreviewModalCard] = useState<CardItem | null>(null);
+  const [previewZoom, setPreviewZoom] = useState<number>(1);
+  const savedCards = loadFromStorage<CardItem[]>('gkd_cards_album_v1', []);
+
+  const [showOnlySimilarCards, setShowOnlySimilarCards] = useState<boolean>(true);
+
+  const similarCards = React.useMemo(() => {
+    if (!selectedGroup || selectedGroup === 'all' || selectedGroup === 'sem_campanha') {
+      return [];
+    }
+    return savedCards.filter(
+      c => isCategorySimilar(c.category, selectedGroup) || isCategorySimilar(c.title, selectedGroup)
+    );
+  }, [savedCards, selectedGroup]);
+
+  const displayCards = React.useMemo(() => {
+    if (!selectedGroup || selectedGroup === 'all' || selectedGroup === 'sem_campanha' || similarCards.length === 0) {
+      return savedCards;
+    }
+    if (showOnlySimilarCards) {
+      return similarCards;
+    }
+    return [...savedCards].sort((a, b) => {
+      const matchA = isCategorySimilar(a.category, selectedGroup) || isCategorySimilar(a.title, selectedGroup);
+      const matchB = isCategorySimilar(b.category, selectedGroup) || isCategorySimilar(b.title, selectedGroup);
+      if (matchA && !matchB) return -1;
+      if (!matchA && matchB) return 1;
+      return a.title.localeCompare(b.title, 'pt-BR');
+    });
+  }, [savedCards, selectedGroup, similarCards, showOnlySimilarCards]);
+
   const handleSelectAllCards = () => {
-    setSelectedCardIds(savedCards.map(c => c.id));
+    setSelectedCardIds(displayCards.map(c => c.id));
   };
 
   const handleClearSelectedCards = () => {
     setSelectedCardIds([]);
   };
-
-  const [previewModalCard, setPreviewModalCard] = useState<CardItem | null>(null);
-  const [previewZoom, setPreviewZoom] = useState<number>(1);
-  const savedCards = loadFromStorage<CardItem[]>('gkd_cards_album_v1', []);
   const getLocal10MinAhead = () => {
     const raw = new Date(Date.now() + 10 * 60 * 1000);
     const d = clampDateToBusinessHours(raw);
@@ -999,8 +1026,28 @@ ${remainingCount > 0 ? `⚠️ ${remainingCount} contato(s) ficaram de fora para
   }, [vehicleFilteredTemplates]);
 
   const allCategories = React.useMemo(() => {
-    return Object.keys(groupedTemplates).sort();
-  }, [groupedTemplates]);
+    const rawCategories = Object.keys(groupedTemplates);
+    if (!selectedGroup || selectedGroup === 'all' || selectedGroup === 'sem_campanha') {
+      return rawCategories.sort((a, b) => a.localeCompare(b, 'pt-BR'));
+    }
+    return rawCategories.sort((a, b) => {
+      const matchA = isCategorySimilar(a, selectedGroup);
+      const matchB = isCategorySimilar(b, selectedGroup);
+      if (matchA && !matchB) return -1;
+      if (!matchA && matchB) return 1;
+      return a.localeCompare(b, 'pt-BR');
+    });
+  }, [groupedTemplates, selectedGroup]);
+
+  // Auto-select topic category similar to selectedGroup when entering Step 2 or changing group
+  React.useEffect(() => {
+    if (step === 2 && selectedGroup && selectedGroup !== 'all' && selectedGroup !== 'sem_campanha') {
+      const bestMatch = allCategories.find(cat => isCategorySimilar(cat, selectedGroup));
+      if (bestMatch && (!activeTopic || !isCategorySimilar(activeTopic, selectedGroup))) {
+        setActiveTopic(bestMatch);
+      }
+    }
+  }, [step, selectedGroup, allCategories]);
 
   return (
     <div className="space-y-4">
@@ -1054,7 +1101,7 @@ ${remainingCount > 0 ? `⚠️ ${remainingCount} contato(s) ficaram de fora para
                   className="bg-[#15181E] border border-[#1F2229] text-gray-200 text-xs rounded-lg px-3 py-2 focus:outline-none focus:border-[#A88B4B] w-full"
                 >
                   <option value="all">📁 Todas ({availableContacts.length})</option>
-                  <option value="sem_campanha">⚠️ Agenda / Sem Campanha ({availableContacts.filter(c => {
+                  <option value="sem_campanha">⚠️ Sem Campanha ({availableContacts.filter(c => {
                     const grp = (c.group || '').toLowerCase();
                     return grp.includes('sem campanha') || grp.includes('agenda de contatos') || !c.group;
                   }).length})</option>
@@ -1212,6 +1259,7 @@ ${remainingCount > 0 ? `⚠️ ${remainingCount} contato(s) ficaram de fora para
 
                   {allCategories.map(cat => {
                     const isSelectedCat = selectedTemplateId === `topic_cat_${cat}`;
+                    const isSimilarToGroup = isCategorySimilar(cat, selectedGroup);
                     return (
                       <button
                         key={cat}
@@ -1226,10 +1274,15 @@ ${remainingCount > 0 ? `⚠️ ${remainingCount} contato(s) ficaram de fora para
                         className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-all ${
                           activeTopic === cat
                             ? 'bg-[#A88B4B] text-[#0A0C10] font-bold shadow-md shadow-[#A88B4B]/10'
+                            : isSimilarToGroup
+                            ? 'bg-amber-500/10 text-amber-300 font-bold border border-amber-500/30'
                             : 'text-gray-400 hover:bg-[#15181E] hover:text-white'
                         }`}
                       >
                         <div className="flex items-center space-x-1.5 min-w-0 pr-2">
+                          {isSimilarToGroup && (
+                            <span className="text-[10px] bg-amber-500 text-black px-1 rounded font-black shrink-0" title={`Correspondente à categoria "${selectedGroup}"`}>⚡</span>
+                          )}
                           {isSelectedCat && (
                             <span className="text-xs shrink-0" title="Escolha aleatória fixa ativada">🎲</span>
                           )}
@@ -1247,6 +1300,25 @@ ${remainingCount > 0 ? `⚠️ ${remainingCount} contato(s) ficaram de fora para
 
             {/* MAIN AREA: CONTENT LIST */}
             <div className="lg:col-span-9 space-y-6">
+              {selectedGroup && selectedGroup !== 'all' && selectedGroup !== 'sem_campanha' && (
+                <div className="bg-amber-500/10 border border-amber-500/30 p-3 rounded-xl flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center space-x-2 text-xs text-amber-300 font-bold">
+                    <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
+                    <span>
+                      Buscando por semelhança com a categoria da agenda: <strong className="text-white underline">{selectedGroup}</strong>
+                    </span>
+                  </div>
+                  {activeTopic && (
+                    <button
+                      type="button"
+                      onClick={() => setActiveTopic(null)}
+                      className="text-[10px] text-gray-400 hover:text-white underline font-semibold cursor-pointer"
+                    >
+                      Ver todos os tópicos
+                    </button>
+                  )}
+                </div>
+              )}
               <div className="space-y-4">
                 {allCategories
                   .filter(cat => !activeTopic || cat === activeTopic)
@@ -1436,24 +1508,60 @@ ${remainingCount > 0 ? `⚠️ ${remainingCount} contato(s) ficaram de fora para
                 <button
                   type="button"
                   onClick={handleSelectAllCards}
-                  className="bg-[#A88B4B]/20 hover:bg-[#A88B4B] text-[#A88B4B] hover:text-[#0A0C10] px-3 py-1.5 rounded text-[10px] font-bold border border-[#A88B4B]/40 transition-all uppercase tracking-wider"
+                  className="bg-[#A88B4B]/20 hover:bg-[#A88B4B] text-[#A88B4B] hover:text-[#0A0C10] px-3 py-1.5 rounded text-[10px] font-bold border border-[#A88B4B]/40 transition-all uppercase tracking-wider cursor-pointer"
                 >
-                  Todos ({savedCards.length})
+                  Todos ({displayCards.length})
                 </button>
                 <button
                   type="button"
                   onClick={handleClearSelectedCards}
-                  className="bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-white px-3 py-1.5 rounded text-[10px] font-bold border border-red-500/30 transition-all uppercase tracking-wider"
+                  className="bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-white px-3 py-1.5 rounded text-[10px] font-bold border border-red-500/30 transition-all uppercase tracking-wider cursor-pointer"
                 >
                   Nenhum
                 </button>
               </div>
             </div>
 
-            {savedCards.length === 0 ? (
+            {selectedGroup && selectedGroup !== 'all' && selectedGroup !== 'sem_campanha' && similarCards.length > 0 && (
+              <div className="bg-amber-500/10 border border-amber-500/30 p-3 rounded-xl flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center space-x-2 text-xs text-amber-300 font-bold">
+                  <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
+                  <span>
+                    Encontrado <strong>{similarCards.length} card(s)</strong> correspondente(s) à categoria "<span className="text-white underline">{selectedGroup}</span>"
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowOnlySimilarCards(!showOnlySimilarCards)}
+                  className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all border cursor-pointer ${
+                    showOnlySimilarCards
+                      ? 'bg-[#A88B4B] text-[#0A0C10] border-[#A88B4B]'
+                      : 'bg-[#15181E] text-gray-300 border-gray-700 hover:text-white'
+                  }`}
+                >
+                  {showOnlySimilarCards ? `✓ Filtrando por "${selectedGroup}"` : `Ver Todos os Cards (${savedCards.length})`}
+                </button>
+              </div>
+            )}
+
+            {displayCards.length === 0 ? (
               <div className="text-center py-8 text-gray-500 border-2 border-dashed border-[#1F2229] rounded-xl">
-                <p className="text-xs">Nenhum card cadastrado no álbum.</p>
-                <p className="text-[10px] mt-1">Cadastre seus cards na aba "Álbum de Cards" para utilizá-los aqui.</p>
+                <p className="text-xs">
+                  {showOnlySimilarCards && similarCards.length === 0 
+                    ? `Nenhum card específico encontrado para a categoria "${selectedGroup}".` 
+                    : 'Nenhum card cadastrado no álbum.'}
+                </p>
+                {showOnlySimilarCards && similarCards.length === 0 && savedCards.length > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowOnlySimilarCards(false)}
+                    className="mt-2 text-amber-400 hover:underline text-xs font-bold cursor-pointer"
+                  >
+                    Exibir todos os {savedCards.length} cards cadastrados
+                  </button>
+                ) : (
+                  <p className="text-[10px] mt-1">Cadastre seus cards na aba "Álbum de Cards" para utilizá-los aqui.</p>
+                )}
               </div>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
@@ -1472,9 +1580,10 @@ ${remainingCount > 0 ? `⚠️ ${remainingCount} contato(s) ficaram de fora para
                   <span className="text-[10px] font-bold uppercase tracking-wider">Sem Card</span>
                 </div>
 
-                {savedCards.map((card) => {
+                {displayCards.map((card) => {
                   const isSelected = selectedCardIds.includes(card.id);
                   const selectedIndex = selectedCardIds.indexOf(card.id);
+                  const isSimilar = isCategorySimilar(card.category, selectedGroup) || isCategorySimilar(card.title, selectedGroup);
 
                   return (
                     <div
@@ -1483,6 +1592,8 @@ ${remainingCount > 0 ? `⚠️ ${remainingCount} contato(s) ficaram de fora para
                       className={`rounded-xl border cursor-pointer transition-all overflow-hidden flex flex-col group relative ${
                         isSelected
                           ? 'bg-[#A88B4B]/20 border-[#A88B4B] ring-2 ring-[#A88B4B] shadow-lg'
+                          : isSimilar
+                          ? 'bg-amber-500/5 border-amber-500/40 hover:border-amber-500'
                           : 'bg-[#0A0C10] border-[#1F2229] hover:border-[#A88B4B]/50'
                       }`}
                     >
@@ -1492,6 +1603,12 @@ ${remainingCount > 0 ? `⚠️ ${remainingCount} contato(s) ficaram de fora para
                           alt={card.title}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                         />
+                        {isSimilar && (
+                          <div className="absolute top-2 left-2 bg-amber-500 text-black text-[8px] font-black px-1.5 py-0.5 rounded shadow flex items-center space-x-0.5" title={`Correspondente à categoria "${selectedGroup}"`}>
+                            <span>⚡</span>
+                            <span className="truncate max-w-[70px]">{card.category || 'Correspondente'}</span>
+                          </div>
+                        )}
                         {isSelected && (
                           <div className="absolute top-2 right-2 bg-[#A88B4B] text-[#0A0C10] text-[9px] font-black px-1.5 py-0.5 rounded shadow">
                             {selectedCardIds.length > 1 ? `#${selectedIndex + 1}` : '✓'}

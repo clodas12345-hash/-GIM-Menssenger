@@ -1270,6 +1270,9 @@ export function getGroups(): ContactGroup[] {
       !loadedNames.has(gName) &&
       !missing.some((m) => m.name === gName) &&
       !obsoleteGroups.has(lower) &&
+      lower !== 'geral' &&
+      lower !== 'sem_campanha' &&
+      !/^T[\_\-\s]?\d{1,3}$/i.test(gName) &&
       !lower.includes('14/08') &&
       !lower.includes('até 30d') &&
       !lower.includes('mais de 30') &&

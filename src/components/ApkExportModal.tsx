@@ -111,6 +111,16 @@ export const ApkExportModal: React.FC<ApkExportModalProps> = ({ isOpen, onClose 
           </div>
         </div>
 
+        {/* WhatsApp Photo sharing in Android APK note */}
+        <div className="bg-[#0A0C10] border border-blue-500/30 rounded-xl p-3.5 space-y-1 text-xs">
+          <p className="font-bold text-blue-400 uppercase tracking-wider flex items-center gap-1.5">
+            <span>📸 Como funciona o Envio de Fotos no APK Android:</span>
+          </p>
+          <p className="text-gray-300 leading-relaxed">
+            O protocolo padrão do WhatsApp (<code className="text-blue-300">whatsapp://send?text=...</code>) transporta automaticamente <strong>apenas o texto</strong> da mensagem. No Android/APK, a foto do card é <strong>baixada automaticamente na galeria</strong> do dispositivo e fica disponível no topo do menu de compartilhamento nativo. Para enviar no WhatsApp: toque no ícone do clipe 📎 &gt; Galeria e escolha a foto recente!
+          </p>
+        </div>
+
         {/* Can I do it from mobile? */}
         <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 space-y-2">
           <p className="font-bold text-amber-400 uppercase tracking-wider text-xs flex items-center space-x-2">

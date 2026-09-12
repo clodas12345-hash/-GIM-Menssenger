@@ -162,10 +162,10 @@ export const ContactRow = React.memo(({
             setSelectedIds(prev => prev.filter(id => id !== contact.id));
             showNotification(`🗑️ Contato "${contact.name}" excluído com sucesso!`);
           }}
-          className="p-2 bg-[#161619] hover:bg-red-950/80 text-gray-400 hover:text-red-400 border border-[#262629] hover:border-red-500/50 rounded-xl transition-all active:scale-95 cursor-pointer"
+          className="p-2.5 min-w-[38px] min-h-[38px] bg-red-500/10 hover:bg-red-600 text-red-400 hover:text-white border border-red-500/20 rounded-xl transition-all active:scale-95 cursor-pointer flex items-center justify-center shadow-sm"
           title="Excluir Contato"
         >
-          <Trash2 className="w-3.5 h-3.5 text-red-400" />
+          <Trash2 className="w-4 h-4" />
         </button>
       </div>
     </div>

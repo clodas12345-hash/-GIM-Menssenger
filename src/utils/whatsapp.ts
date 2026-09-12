@@ -532,6 +532,43 @@ export function getExpectedGroup(successfulCount: number): string {
   return '6+ Envios';
 }
 
+export function normalizeCategory(str: string): string {
+  if (!str) return '';
+  return str
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+}
+
+export function isCategorySimilar(categoryCandidate: string, selectedGroupName: string): boolean {
+  if (!categoryCandidate || !selectedGroupName) return false;
+  const sgClean = selectedGroupName.trim();
+  if (sgClean === 'all' || sgClean === 'sem_campanha' || sgClean === 'Agenda de Contatos (Sem Campanha)' || sgClean.toLowerCase() === 'agenda de contatos') return false;
+
+  const targetNorm = normalizeCategory(categoryCandidate);
+  const searchNorm = normalizeCategory(selectedGroupName);
+
+  if (!targetNorm || !searchNorm) return false;
+
+  // Exact normalized match (e.g. "cg05150" === "cg05150")
+  if (targetNorm === searchNorm) return true;
+
+  // Inclusion
+  if (targetNorm.includes(searchNorm) || searchNorm.includes(targetNorm)) return true;
+
+  // Token based matching
+  const targetTokens = categoryCandidate.toLowerCase().split(/[\s\-\/_]+/);
+  const searchTokens = selectedGroupName.toLowerCase().split(/[\s\-\/_]+/);
+
+  const keySearchTokens = searchTokens.filter(t => t.length >= 2);
+  if (keySearchTokens.length > 0 && keySearchTokens.every(t => targetNorm.includes(normalizeCategory(t)))) {
+    return true;
+  }
+
+  return false;
+}
+
 export const AVAILABLE_VARIABLES = [
   { key: '{nome}', label: 'Nome Completo', example: 'João Silva' },
   { key: '{primeiro_nome}', label: 'Primeiro Nome', example: 'João' },

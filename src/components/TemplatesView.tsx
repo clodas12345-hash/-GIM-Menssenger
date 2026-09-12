@@ -251,28 +251,31 @@ const TemplateCard: React.FC<TemplateCardProps> = React.memo(({
           <button
             type="button"
             onClick={() => onOpenEdit(tmpl)}
-            className="p-2 min-w-[38px] min-h-[38px] flex items-center justify-center text-gray-300 hover:text-white hover:bg-[#1F2229] rounded-lg transition-colors border border-transparent hover:border-[#2A2D35]"
+            className="px-2.5 py-1.5 min-h-[36px] bg-blue-500/10 hover:bg-blue-600 text-blue-400 hover:text-white rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 border border-blue-500/30 cursor-pointer"
             title="Editar mensagem"
             aria-label="Editar mensagem"
           >
-            <Pencil className="w-4.5 h-4.5" />
+            <Pencil className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Editar</span>
           </button>
           
           {isDeleting ? (
-            <div className="flex items-center gap-1.5 bg-red-950/40 border border-red-500/30 p-1 rounded-lg animate-in fade-in zoom-in-95 duration-200">
-              <span className="text-[10px] font-black text-red-200 uppercase px-1.5">Excluir?</span>
+            <div className="flex items-center gap-2 bg-red-950/90 border border-red-500/60 p-1.5 rounded-xl animate-in fade-in zoom-in-95 duration-200">
+              <span className="text-xs font-black text-red-200 uppercase px-1.5">Excluir?</span>
               <button
+                type="button"
                 onClick={() => setIsDeleting(false)}
-                className="px-2 py-1 bg-[#0A0C10] hover:bg-[#1A1D23] text-gray-300 rounded text-[10px] font-bold transition-all"
+                className="px-3.5 py-1.5 min-h-[36px] bg-[#0A0C10] hover:bg-[#1A1D23] text-gray-200 rounded-lg text-xs font-bold border border-[#1F2229] transition-all cursor-pointer active:scale-95"
               >
                 Não
               </button>
               <button
+                type="button"
                 onClick={() => {
                   onDelete(tmpl.id);
                   setIsDeleting(false);
                 }}
-                className="px-2 py-1 bg-red-600 hover:bg-red-500 text-white rounded text-[10px] font-bold transition-all shadow-lg shadow-red-600/30"
+                className="px-4 py-1.5 min-h-[36px] bg-red-600 hover:bg-red-500 text-white rounded-lg text-xs font-extrabold transition-all shadow-lg shadow-red-600/40 cursor-pointer active:scale-95"
               >
                 Sim
               </button>
@@ -281,11 +284,12 @@ const TemplateCard: React.FC<TemplateCardProps> = React.memo(({
             <button
               type="button"
               onClick={() => setIsDeleting(true)}
-              className="p-2 min-w-[38px] min-h-[38px] flex items-center justify-center text-red-400 hover:text-white hover:bg-red-600 bg-red-500/10 border border-red-500/20 rounded-lg transition-all shadow-sm"
+              className="px-3.5 py-2 min-h-[40px] bg-red-500/15 hover:bg-red-600 text-red-400 hover:text-white rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center space-x-2 border border-red-500/40 shadow-sm cursor-pointer active:scale-95"
               title="Excluir mensagem"
               aria-label="Excluir mensagem"
             >
-              <Trash2 className="w-4.5 h-4.5" />
+              <Trash2 className="w-4 h-4" />
+              <span className="font-bold">Excluir</span>
             </button>
           )}
         </div>
@@ -899,102 +903,131 @@ export const TemplatesView: React.FC<TemplatesViewProps> = React.memo(({
 
               {allCategories.map((cat) => {
                 const count = categoryCounts.get(cat) || 0;
+                const isActive = activeTopic === cat;
                 return (
-                  <div key={cat} className="group/topic relative flex items-center">
+                  <div
+                    key={cat}
+                    className={`group/topic flex items-center justify-between rounded-lg transition-all p-1 ${
+                      isActive
+                        ? 'bg-[#A88B4B] shadow-md shadow-[#A88B4B]/10'
+                        : 'hover:bg-[#1A1D23] bg-[#111318] border border-[#1F2229]/60'
+                    }`}
+                  >
                     <button
                       type="button"
                       onClick={() => setActiveTopic(cat)}
-                      className={`w-full flex items-center justify-between pl-3 pr-20 py-2.5 rounded-lg text-xs transition-all ${
-                        activeTopic === cat
-                          ? 'bg-[#A88B4B] text-[#0A0C10] font-bold shadow-lg shadow-[#A88B4B]/10'
-                          : 'text-gray-400 hover:bg-[#1A1D23] hover:text-white'
-                      }`}
+                      className="flex-1 flex items-center justify-between px-2 py-1.5 text-xs text-left min-w-0 cursor-pointer"
                     >
-                      <div className="flex items-center space-x-2 flex-1 min-w-0">
+                      <div className="flex items-center space-x-2 min-w-0 mr-1.5">
                         <div
-                          className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                            activeTopic === cat ? 'bg-[#0A0C10]' : 'bg-[#A88B4B]'
+                          className={`w-2 h-2 rounded-full shrink-0 ${
+                            isActive ? 'bg-[#0A0C10]' : 'bg-[#A88B4B]'
                           }`}
                         />
-                        <span className="break-words text-left leading-tight py-1">{cat}</span>
+                        <span
+                          className={`truncate text-xs font-semibold ${
+                            isActive ? 'text-[#0A0C10]' : 'text-gray-200 group-hover/topic:text-white'
+                          }`}
+                        >
+                          {cat}
+                        </span>
                       </div>
                       <span
-                        className={`text-[10px] ${
-                          activeTopic === cat ? 'bg-[#0A0C10]/20 text-[#0A0C10]' : 'bg-[#0A0C10] text-gray-400'
-                        } px-1.5 py-0.5 rounded min-w-[24px] text-center ml-1 shrink-0`}
+                        className={`text-[10px] font-bold ${
+                          isActive ? 'bg-[#0A0C10]/25 text-[#0A0C10]' : 'bg-[#0A0C10] text-gray-400 border border-[#1F2229]'
+                        } px-1.5 py-0.5 rounded shrink-0 min-w-[20px] text-center`}
                       >
                         {count}
                       </span>
                     </button>
 
-                    {/* Botão de Agendar com Escolha Aleatória Fixa */}
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        e.preventDefault();
-                        const catTemplates = templates.filter((t) => t && (t.category || '').trim().toLowerCase() === cat.trim().toLowerCase());
-                        handleScheduleTopicCampaign(cat, catTemplates);
-                      }}
-                      className="absolute right-13 top-1/2 -translate-y-1/2 min-w-[32px] min-h-[32px] p-1.5 text-amber-400 hover:text-[#0A0C10] hover:bg-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-md z-20 flex items-center justify-center transition-all shadow-sm cursor-pointer"
-                      title={`Agendar campanha "${cat}" com escolha aleatória fixa sempre`}
-                      aria-label={`Agendar campanha ${cat} aleatória`}
-                    >
-                      <Sparkles className="w-3.5 h-3.5" />
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        e.preventDefault();
-                        setEditingTopic({ oldName: cat, currentName: cat });
-                      }}
-                      className="absolute right-7 top-1/2 -translate-y-1/2 min-w-[32px] min-h-[32px] p-1.5 text-[#A88B4B] hover:text-white hover:bg-[#A88B4B] bg-[#A88B4B]/15 border border-[#A88B4B]/30 rounded-md z-20 flex items-center justify-center transition-all shadow-sm cursor-pointer"
-                      title={`Editar nome do tópico "${cat}"`}
-                      aria-label={`Editar tópico ${cat}`}
-                    >
-                      <Pencil className="w-3.5 h-3.5" />
-                    </button>
-
-                    {topicToDeleteInline === cat ? (
-                      <div className="absolute right-1 top-1/2 -translate-y-1/2 z-[30] flex items-center gap-1 bg-red-950/90 border border-red-500/50 p-1 rounded-md shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-                        <span className="text-[9px] font-black text-red-200 uppercase px-1">Excluir?</span>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setTopicToDeleteInline(null);
-                          }}
-                          className="px-1.5 py-1 bg-[#0A0C10] hover:bg-[#1A1D23] text-gray-300 rounded text-[9px] font-bold transition-all"
-                        >
-                          Não
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleConfirmDeleteTopicInline(cat);
-                            setTopicToDeleteInline(null);
-                          }}
-                          className="px-1.5 py-1 bg-red-600 hover:bg-red-500 text-white rounded text-[9px] font-bold transition-all shadow-lg shadow-red-600/30"
-                        >
-                          Sim
-                        </button>
-                      </div>
-                    ) : (
+                    {/* Botões de Ação Organizadores em Flex sem Sobreposição */}
+                    <div className="flex items-center gap-1.5 shrink-0 ml-1">
+                      {/* Agendar */}
                       <button
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
                           e.preventDefault();
-                          setTopicToDeleteInline(cat);
+                          const catTemplates = templates.filter((t) => t && (t.category || '').trim().toLowerCase() === cat.trim().toLowerCase());
+                          handleScheduleTopicCampaign(cat, catTemplates);
                         }}
-                        className="absolute right-1 top-1/2 -translate-y-1/2 min-w-[32px] min-h-[32px] p-1.5 text-red-400 hover:text-white active:text-white hover:bg-red-600 bg-red-500/10 border border-red-500/20 rounded-md z-20 flex items-center justify-center transition-all shadow-sm cursor-pointer"
-                        title={`Excluir tópico "${cat}"`}
-                        aria-label={`Excluir tópico ${cat}`}
+                        className={`p-2 rounded-md transition-all flex items-center justify-center cursor-pointer ${
+                          isActive
+                            ? 'text-[#0A0C10] hover:bg-[#0A0C10]/20'
+                            : 'text-amber-400 hover:text-white hover:bg-amber-500/30 bg-amber-500/10 border border-amber-500/20'
+                        }`}
+                        title={`Agendar campanha "${cat}" com escolha aleatória`}
+                        aria-label={`Agendar campanha ${cat}`}
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
+                        <Sparkles className="w-4 h-4" />
                       </button>
-                    )}
+
+                      {/* Editar */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          e.preventDefault();
+                          setEditingTopic({ oldName: cat, currentName: cat });
+                        }}
+                        className={`p-2 rounded-md transition-all flex items-center justify-center cursor-pointer ${
+                          isActive
+                            ? 'text-[#0A0C10] hover:bg-[#0A0C10]/20'
+                            : 'text-blue-400 hover:text-white hover:bg-blue-500/30 bg-blue-500/10 border border-blue-500/20'
+                        }`}
+                        title={`Editar nome do tópico "${cat}"`}
+                        aria-label={`Editar tópico ${cat}`}
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+
+                      {/* Excluir */}
+                      {topicToDeleteInline === cat ? (
+                        <div className="flex items-center gap-1.5 bg-red-950 border border-red-500/60 p-1.5 rounded-md shadow-lg animate-in fade-in zoom-in-95 duration-150 z-30">
+                          <span className="text-[10px] font-black text-red-200 uppercase px-1">Excluir?</span>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setTopicToDeleteInline(null);
+                            }}
+                            className="px-2 py-1 bg-[#0A0C10] hover:bg-[#1A1D23] text-gray-300 rounded text-xs font-bold cursor-pointer"
+                          >
+                            Não
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleConfirmDeleteTopicInline(cat);
+                              setTopicToDeleteInline(null);
+                            }}
+                            className="px-2.5 py-1 bg-red-600 hover:bg-red-500 text-white rounded text-xs font-extrabold shadow cursor-pointer"
+                          >
+                            Sim
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            setTopicToDeleteInline(cat);
+                          }}
+                          className={`p-2 rounded-md transition-all flex items-center justify-center cursor-pointer ${
+                            isActive
+                              ? 'text-red-950 hover:bg-red-900/40 hover:text-red-100'
+                              : 'text-red-400 hover:text-white hover:bg-red-600 bg-red-500/10 border border-red-500/20'
+                          }`}
+                          title={`Excluir tópico "${cat}"`}
+                          aria-label={`Excluir tópico ${cat}`}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 );
               })}
@@ -1026,10 +1059,10 @@ export const TemplatesView: React.FC<TemplatesViewProps> = React.memo(({
                 <button
                   type="button"
                   onClick={() => handleInitiateDeleteTopic(activeTopic)}
-                  className="bg-red-500/10 hover:bg-red-600 text-red-400 hover:text-white border border-red-500/30 px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center space-x-1.5 transition-all shadow-sm"
+                  className="bg-red-500/15 hover:bg-red-600 text-red-400 hover:text-white border border-red-500/40 px-3.5 py-2 min-h-[38px] rounded-xl text-xs font-extrabold uppercase tracking-wider flex items-center space-x-2 transition-all shadow-md active:scale-95 cursor-pointer"
                   title="Excluir este tópico definitivamente"
                 >
-                  <Trash2 className="w-3.5 h-3.5" />
+                  <Trash2 className="w-4 h-4" />
                   <span>Excluir Tópico</span>
                 </button>
               )}

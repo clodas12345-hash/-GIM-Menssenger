@@ -208,26 +208,33 @@ export const ScanContactsModal: React.FC<ScanContactsModalProps> = ({
 
   // 5. Fix categories / align with dispatch categories
   const handleFixCategories = () => {
-    const defaultCategory = groups[0]?.name || (campaigns && campaigns[0]?.categoryName) || 'Geral';
+    const defaultCategory = 'Agenda de Contatos';
     const updated = contacts.map((c) => {
-      const g = (c.group || 'Geral').toLowerCase();
+      const g = (c.group || 'Agenda de Contatos').toLowerCase();
       if (!c.group || g === 'geral' || (groups.length > 0 && !groups.some(gr => gr.name.toLowerCase() === g))) {
         return { ...c, group: defaultCategory };
       }
       return c;
     });
     onUpdateContacts(updated);
-    setSuccessMessage(`✅ Categorias de envio alinhadas com sucesso para ${defaultCategory}!`);
+    setSuccessMessage(`✅ Categorias sem envio alinhadas com sucesso para Agenda de Contatos!`);
   };
 
   // 5. Auto optimize names and groups
   const handleOptimizeNamesAndGroups = () => {
+    const validGroupSet = new Set(groups.map(g => g.name.toLowerCase()));
+    validGroupSet.add('agenda de contatos');
+
     const updated = contacts.map((c) => {
       const { cleanName, detectedGroup } = processContactName(c.name);
+      let targetGroup = detectedGroup || c.group || 'Agenda de Contatos';
+      if (!validGroupSet.has(targetGroup.toLowerCase()) || targetGroup.toLowerCase() === 'geral') {
+        targetGroup = 'Agenda de Contatos';
+      }
       return {
         ...c,
         name: cleanName || c.name,
-        group: detectedGroup || c.group || 'Geral'
+        group: targetGroup
       };
     });
 
@@ -239,6 +246,8 @@ export const ScanContactsModal: React.FC<ScanContactsModalProps> = ({
   const handleSanitizeAll = () => {
     const seen = new Set<string>();
     const sanitizedList: Contact[] = [];
+    const validGroupSet = new Set(groups.map(g => g.name.toLowerCase()));
+    validGroupSet.add('agenda de contatos');
 
     contacts.forEach((c) => {
       let rawDigits = cleanPhoneNumber(c.phone);
@@ -268,11 +277,16 @@ export const ScanContactsModal: React.FC<ScanContactsModalProps> = ({
         finalName = `Contato ${shortPhone}`;
       }
 
+      let targetGroup = detectedGroup || c.group || 'Agenda de Contatos';
+      if (!validGroupSet.has(targetGroup.toLowerCase()) || targetGroup.toLowerCase() === 'geral') {
+        targetGroup = 'Agenda de Contatos';
+      }
+
       sanitizedList.push({
         ...c,
         phone: rawDigits,
         name: finalName,
-        group: detectedGroup || c.group || 'Geral'
+        group: targetGroup
       });
     });
 

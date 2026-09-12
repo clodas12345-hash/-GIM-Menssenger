@@ -273,7 +273,17 @@ export const DispatcherModal = React.forwardRef((props: any, ref) => {
     }
 
     if (activeCardImageUrl) {
-      await copyImageDataUrlToClipboard(activeCardImageUrl);
+      const copied = await copyImageDataUrlToClipboard(activeCardImageUrl);
+      if (!copied) {
+        // Fallback for Android WebView / APK where clipboard image write is restricted by security permissions:
+        // Download image directly to device gallery so user can select it via WhatsApp 📎 attachment button
+        downloadImageFile(activeCardImageUrl, `${(campaign.cardTitle || 'card_whatsapp').replace(/[^a-zA-Z0-9]/g, '_')}.png`);
+        setDownloadStatus(true);
+        setTimeout(() => setDownloadStatus(false), 5000);
+      } else {
+        setCopiedCardStatus(true);
+        setTimeout(() => setCopiedCardStatus(false), 3500);
+      }
     }
 
     const link = buildWhatsAppLink(currentContact.phone, currentMessageText, settings?.sendMode || 'api');
@@ -346,7 +356,7 @@ export const DispatcherModal = React.forwardRef((props: any, ref) => {
     if (!contactToUse) return;
     
     let wasDeleted = false;
-    if (confirm(`O contato "${contactToUse.name}" será marcado como Já Enviado.\n\nDeseja também EXCLUIR este contato da sua lista permanentemente?`)) {
+    if (confirm(`O contato "${contactToUse.name}" será marcado como Já Enviado.\n\nDeseja remover este contato da sua lista (não tem WhatsApp)?`)) {
       if (onDeleteContact) {
         onDeleteContact(contactToUse.id);
         wasDeleted = true;
@@ -525,7 +535,7 @@ export const DispatcherModal = React.forwardRef((props: any, ref) => {
                   }}
                   className="w-full text-left px-3 py-1.5 text-xs font-semibold text-red-400 hover:bg-red-950/40 rounded-lg transition-colors flex items-center gap-2"
                 >
-                  <XCircle className="w-3.5 h-3.5" /> Excluir Contato
+                  <XCircle className="w-3.5 h-3.5" /> Não tem WhatsApp
                 </button>
               </div>
             )}
@@ -536,7 +546,7 @@ export const DispatcherModal = React.forwardRef((props: any, ref) => {
         <div className="overflow-y-auto flex-1 overscroll-contain no-scrollbar">
           {/* Card Anexado Section */}
           {(campaign.cardId || campaign.cardTitle || activeCardImageUrl) && (
-            <div className="p-3.5 border-b border-[#262629] bg-[#121316] flex items-center justify-between">
+            <div className="p-3.5 border-b border-[#262629] bg-[#121316] flex flex-wrap items-center justify-between gap-2">
                <div className="flex items-center gap-2.5 min-w-0">
                  <div className="w-9 h-7 rounded border border-[#A88B4B]/50 flex items-center justify-center shrink-0 bg-black/40 overflow-hidden shadow-inner">
                    {activeCardImageUrl ? (
@@ -558,15 +568,37 @@ export const DispatcherModal = React.forwardRef((props: any, ref) => {
                  </div>
                </div>
 
-               <button
-                 type="button"
-                 onClick={handleCopyCard}
-                 className={`p-1.5 ${copiedCardStatus ? 'bg-emerald-950/80 border-emerald-500/80 text-emerald-300' : 'bg-[#1C1F26] hover:bg-[#282D37] border-[#333842] text-gray-300 hover:text-white'} border rounded-md text-[10px] flex items-center gap-1 transition-colors shrink-0`}
-                 title="Copiar foto para área de transferência"
-               >
-                 {copiedCardStatus ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-amber-400" />}
-                 <span>{copiedCardStatus ? 'Copiada!' : 'Copiar'}</span>
-               </button>
+               <div className="flex items-center gap-1.5 shrink-0">
+                 <button
+                   type="button"
+                   onClick={handleCopyCard}
+                   className={`p-1.5 ${copiedCardStatus ? 'bg-emerald-950/80 border-emerald-500/80 text-emerald-300' : 'bg-[#1C1F26] hover:bg-[#282D37] border-[#333842] text-gray-300 hover:text-white'} border rounded-md text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer`}
+                   title="Copiar foto para área de transferência"
+                 >
+                   {copiedCardStatus ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-amber-400" />}
+                   <span>{copiedCardStatus ? 'Copiada!' : 'Copiar'}</span>
+                 </button>
+
+                 <button
+                   type="button"
+                   onClick={handleShareCard}
+                   className={`p-1.5 ${shareStatus ? 'bg-blue-950/80 border-blue-500/80 text-blue-300' : 'bg-[#1C1F26] hover:bg-[#282D37] border-[#333842] text-gray-300 hover:text-white'} border rounded-md text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer`}
+                   title="Compartilhar imagem + texto via WhatsApp Nativo (Android / APK)"
+                 >
+                   <Share2 className="w-3.5 h-3.5 text-blue-400" />
+                   <span>{shareStatus || 'Compartilhar'}</span>
+                 </button>
+
+                 <button
+                   type="button"
+                   onClick={handleDownloadCard}
+                   className={`p-1.5 ${downloadStatus ? 'bg-emerald-950/80 border-emerald-500/80 text-emerald-300' : 'bg-[#1C1F26] hover:bg-[#282D37] border-[#333842] text-gray-300 hover:text-white'} border rounded-md text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer`}
+                   title="Baixar foto no celular/PC"
+                 >
+                   {downloadStatus ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Download className="w-3.5 h-3.5 text-emerald-400" />}
+                   <span>{downloadStatus ? 'Baixada!' : 'Baixar Foto'}</span>
+                 </button>
+               </div>
             </div>
           )}
 
@@ -765,6 +797,40 @@ export const DispatcherModal = React.forwardRef((props: any, ref) => {
                   </button>
                 </div>
 
+                {/* Android / APK Image Sharing Helper Banner */}
+                {activeCardImageUrl && (
+                  <div className="bg-amber-500/10 border border-amber-500/30 p-3 rounded-xl flex items-start gap-2.5 text-xs text-amber-200 shadow-md">
+                    <ImageIcon className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                    <div className="space-y-1 text-left min-w-0 flex-1">
+                      <p className="font-bold text-amber-300 flex items-center gap-1.5 text-[11px]">
+                        <span>📸 Foto do Card no Android / APK:</span>
+                      </p>
+                      <p className="text-[11px] text-gray-300 leading-relaxed">
+                        No WhatsApp em APK/Celular, a imagem foi <strong>baixada automaticamente na sua galeria</strong>. 
+                        No WhatsApp, toque no ícone do <strong>Clipe 📎</strong> &gt; <strong>Galeria</strong> e selecione a foto mais recente.
+                      </p>
+                      <div className="flex flex-wrap gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={handleShareCard}
+                          className="bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/40 text-blue-300 px-2.5 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                        >
+                          <Share2 className="w-3 h-3 text-blue-400" />
+                          <span>Enviar via Compartilhamento Nativo</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleDownloadCard}
+                          className="bg-[#1C1F26] hover:bg-[#282D37] border border-[#333842] text-gray-300 px-2.5 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                        >
+                          <Download className="w-3 h-3 text-emerald-400" />
+                          <span>Baixar Novamente</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 
 
                 {!showAdiarOptions ? (
@@ -791,7 +857,7 @@ export const DispatcherModal = React.forwardRef((props: any, ref) => {
                              setTimeout(() => onDeleteContact(contactIdToDelete), 300);
                           }
                       }} className="flex-1 bg-[#2D0F14] hover:bg-[#43161E] border border-[#EF4444]/40 rounded-xl py-2.5 flex items-center justify-center gap-1.5 text-[#EF4444] font-bold text-[10px] tracking-wider transition-colors">
-                        <XCircle className="w-4 h-4 shrink-0" /> EXCLUIR
+                        <XCircle className="w-4 h-4 shrink-0" /> NÃO TEM WHATSAPP
                       </button>
                     </div>
                   </div>
