@@ -14,9 +14,8 @@ interface RealTimeCounterProps {
 export const RealTimeCounter: React.FC<RealTimeCounterProps> = React.memo(({ logs, settings, compact = false, onResetChip, onResetAll }) => {
   const allChips = useMemo(() => settings.chips || [], [settings.chips]);
   
-  // Modal states for confirmation
+  // Modal state for confirmation
   const [chipToReset, setChipToReset] = useState<{ id: string; name: string } | null>(null);
-  const [showResetAllConfirm, setShowResetAllConfirm] = useState(false);
   
   // Update sliding window every 60s
   const [nowMs, setNowMs] = React.useState(Date.now());
@@ -125,18 +124,6 @@ export const RealTimeCounter: React.FC<RealTimeCounterProps> = React.memo(({ log
 
   return (
     <div className="space-y-4">
-      {onResetAll && chipMetrics.length > 1 && (
-        <div className="flex justify-end pb-1">
-          <button
-            type="button"
-            onClick={() => setShowResetAllConfirm(true)}
-            className="px-3 py-1.5 bg-red-500/10 hover:bg-red-600 text-red-400 hover:text-white border border-red-500/20 rounded-xl text-xs font-bold transition-all flex items-center space-x-1.5 active:scale-95 cursor-pointer shadow-sm"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-            <span>Zerar Todos os Contadores</span>
-          </button>
-        </div>
-      )}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {chipMetrics.map(chip => {
           const color = chip.color;
@@ -245,12 +232,12 @@ export const RealTimeCounter: React.FC<RealTimeCounterProps> = React.memo(({ log
                   </button>
 
                   {expandedChipId === chip.id && (
-                    <div className="space-y-1.5 p-2 bg-black/40 rounded-lg border border-white/5 animate-in slide-in-from-top-2 duration-300">
-                      <div className="flex items-center justify-between text-[8px] font-black text-gray-600 uppercase tracking-[0.2em] mb-1 pb-1 border-b border-white/5">
+                    <div className="space-y-1.5 p-2 bg-black/40 rounded-lg border border-white/5 animate-in slide-in-from-top-2 duration-300 max-h-60 overflow-y-auto no-scrollbar">
+                      <div className="flex items-center justify-between text-[8px] font-black text-gray-600 uppercase tracking-[0.2em] mb-1 pb-1 border-b border-white/5 sticky top-0 bg-black/90 backdrop-blur-sm z-10">
                         <span>Horário</span>
                         <span>Vaga</span>
                       </div>
-                      {/* Show next 5 releases */}
+                      {/* Show next 15 releases */}
                       {(() => {
                         const maxLimit = chip.maxLimit;
                         const chipCleanName = (chip.name || '').toLowerCase();
@@ -272,10 +259,10 @@ export const RealTimeCounter: React.FC<RealTimeCounterProps> = React.memo(({ log
                           return <p className="text-[9px] text-gray-600 italic py-1 text-center">Nenhuma vaga agendada para liberar</p>;
                         }
 
-                        return relevantTimestamps.slice(0, 5).map((ts, i) => (
-                          <div key={i} className="flex items-center justify-between py-0.5 border-b border-white/5 last:border-0">
-                            <span className="text-[10px]">{formatReleaseDate(new Date(ts + 24 * 60 * 60 * 1000))}</span>
-                            <span className="text-[9px] font-black text-gray-500">#{i + 1}</span>
+                        return relevantTimestamps.slice(0, 15).map((ts, i) => (
+                          <div key={i} className="flex items-center justify-between py-0.5 border-b border-white/5 last:border-0 hover:bg-white/5 px-1 rounded transition-colors">
+                            <span className="text-[10px] text-gray-300 font-mono">{formatReleaseDate(new Date(ts + 24 * 60 * 60 * 1000))}</span>
+                            <span className="text-[9px] font-black text-[#A88B4B]">#{i + 1}</span>
                           </div>
                         ));
                       })()}
@@ -368,63 +355,6 @@ export const RealTimeCounter: React.FC<RealTimeCounterProps> = React.memo(({ log
               >
                 <Trash2 className="w-4 h-4" />
                 <span>Sim, Zerar</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* POP-UP MODAL DE CONFIRMAÇÃO DE ZERAR TODOS */}
-      {showResetAllConfirm && (
-        <div 
-          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200"
-          onClick={() => setShowResetAllConfirm(false)}
-        >
-          <div 
-            className="bg-[#15181E] border border-red-500/40 rounded-2xl p-6 max-w-sm w-full space-y-5 shadow-2xl animate-in zoom-in-95 duration-200 relative"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              onClick={() => setShowResetAllConfirm(false)}
-              className="absolute top-4 right-4 p-1.5 text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 rounded-lg transition-all"
-            >
-              <X className="w-4 h-4" />
-            </button>
-
-            <div className="flex items-center space-x-3">
-              <div className="p-3 bg-red-500/10 rounded-2xl border border-red-500/30 text-red-400 shrink-0">
-                <AlertTriangle className="w-6 h-6" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <h3 className="text-base font-bold text-white tracking-tight">Zerar Todos os Contadores?</h3>
-                <p className="text-xs text-red-400 font-semibold">Ação em Lote</p>
-              </div>
-            </div>
-
-            <p className="text-xs text-gray-300 leading-relaxed bg-[#0A0C10] p-3.5 rounded-xl border border-white/5">
-              Tem certeza que deseja zerar a contagem de disparos de TODOS os chips registrados de uma só vez?
-            </p>
-
-            <div className="flex items-center space-x-2 pt-1">
-              <button
-                type="button"
-                onClick={() => setShowResetAllConfirm(false)}
-                className="flex-1 py-2.5 px-4 bg-[#1C1F26] hover:bg-[#252932] text-gray-300 rounded-xl text-xs font-bold transition-all border border-white/10 active:scale-95 cursor-pointer"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (onResetAll) {
-                    onResetAll();
-                  }
-                  setShowResetAllConfirm(false);
-                }}
-                className="flex-1 py-2.5 px-4 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs font-extrabold transition-all shadow-lg shadow-red-600/30 active:scale-95 cursor-pointer flex items-center justify-center space-x-1.5"
-              >
-                <Trash2 className="w-4 h-4" />
-                <span>Zerar Todos</span>
               </button>
             </div>
           </div>

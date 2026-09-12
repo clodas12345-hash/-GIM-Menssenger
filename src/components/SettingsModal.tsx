@@ -1,13 +1,41 @@
-import React, { useState } from 'react';
-import { Settings, X, Check, Globe, Volume2, ShieldCheck, Link2, Smartphone, Plus, Trash2, MessageCircle, Save, AlertTriangle, Lock, Unlock, ShieldAlert, Shield } from 'lucide-react';
-import { AppSettings, WhatsAppChip, DispatchLogItem } from '../types';
+import React, { useState, useRef } from 'react';
+import { 
+  Settings, 
+  X, 
+  Check, 
+  Globe, 
+  Volume2, 
+  ShieldCheck, 
+  Link2, 
+  Smartphone, 
+  Plus, 
+  Trash2, 
+  MessageCircle, 
+  Save, 
+  AlertTriangle, 
+  Lock, 
+  Unlock, 
+  ShieldAlert, 
+  Shield,
+  Download,
+  Upload,
+  CheckCircle2
+} from 'lucide-react';
+import { AppSettings, WhatsAppChip, DispatchLogItem, Contact, ScheduledCampaign, MessageTemplate, ContactGroup } from '../types';
 import { cleanChipName } from '../utils/whatsapp';
 import { safeConfirm } from '../utils/whatsapp';
+import { restoreFromBackup } from '../utils/storage';
 
 interface SettingsModalProps {
   logs?: DispatchLogItem[];
+  contacts?: Contact[];
+  campaigns?: ScheduledCampaign[];
+  templates?: MessageTemplate[];
+  groups?: ContactGroup[];
+  onRefreshData?: () => void;
   onReportBlocked24h?: () => void;
   onUnblockWhatsApp?: () => void;
+  onResetChipLogs?: (chipId: string) => void;
   isOpen: boolean;
   onClose: () => void;
   settings: AppSettings;
@@ -24,8 +52,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onOpenSaveAndReset,
   onOpenPermissions,
   logs = [],
+  contacts = [],
+  campaigns = [],
+  templates = [],
+  groups = [],
+  onRefreshData,
   onReportBlocked24h,
   onUnblockWhatsApp,
+  onResetChipLogs,
 }) => {
   const [defaultCountryCode, setDefaultCountryCode] = useState<string>(settings.defaultCountryCode || '55');
   const [defaultIntervalSeconds, setDefaultIntervalSeconds] = useState<number>(settings.defaultIntervalSeconds || 8);
@@ -75,6 +109,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const isLimitReached = sentLast24H >= maxLimit;
 
 
+  const [importStatus, setImportStatus] = useState<string | null>(null);
+  const [exportStatus, setExportStatus] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   if (!isOpen) return null;
 
   const handleAddChip = () => {
@@ -107,6 +145,83 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     if (activeChipId === id && updated.length > 0) {
       setActiveChipId(updated[0].id);
     }
+  };
+
+  const handleExportJson = () => {
+    try {
+      const allLocalStorageData: Record<string, any> = {};
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key) {
+          try {
+            allLocalStorageData[key] = JSON.parse(localStorage.getItem(key) || '');
+          } catch {
+            allLocalStorageData[key] = localStorage.getItem(key);
+          }
+        }
+      }
+
+      const backupData = {
+        appName: 'ZapAgendador Messenger',
+        version: '2.5',
+        exportDate: new Date().toISOString(),
+        stats: {
+          totalContacts: contacts?.length || 0,
+          totalLogs: logs?.length || 0,
+          totalCampaigns: campaigns?.length || 0,
+          totalTemplates: templates?.length || 0,
+        },
+        contacts: contacts || [],
+        logs: logs || [],
+        campaigns: campaigns || [],
+        templates: templates || [],
+        groups: groups || [],
+        settings,
+        rawLocalStorage: allLocalStorageData,
+      };
+
+      const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `backup_zapagendador_${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      setExportStatus('Backup exportado com sucesso! Arquivo JSON salvo.');
+      setTimeout(() => setExportStatus(null), 4000);
+    } catch (err) {
+      console.error('Erro ao exportar JSON:', err);
+      alert('Erro ao exportar backup.');
+    }
+  };
+
+  const handleImportJson = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const json = JSON.parse(event.target?.result as string);
+        const result = restoreFromBackup(json);
+        if (result.success) {
+          setImportStatus('Backup restaurado com sucesso! Atualizando sistema...');
+          setTimeout(() => {
+            if (onRefreshData) onRefreshData();
+            window.location.reload();
+          }, 1200);
+        } else {
+          alert(`Erro ao restaurar: ${result.error}`);
+        }
+      } catch (err) {
+        alert('Arquivo JSON inválido.');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
   };
 
   const handleSave = (e: React.FormEvent) => {
@@ -476,25 +591,95 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             )}
           </div>
 
-          <div className="bg-[#0A0C10] border border-[#1F2229] rounded-xl p-4 space-y-3">
-            <div className="flex items-center space-x-2">
-              <Shield className="w-4 h-4 text-[#D4AF37]" />
-              <h4 className="font-bold text-white text-xs uppercase tracking-wider">Permissões & Dispositivo</h4>
+          {/* Escudo: Permissões & Dispositivo */}
+          <div className="bg-[#0A0C10] border border-[#D4AF37]/30 rounded-xl p-4 space-y-3 shadow-md">
+            <div className="flex items-center space-x-3">
+              <div className="w-9 h-9 rounded-xl bg-[#D4AF37]/20 border border-[#D4AF37]/40 flex items-center justify-center text-[#D4AF37] shrink-0">
+                <Shield className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="font-bold text-white text-xs uppercase tracking-wider">Permissões & Escudo do Dispositivo</h4>
+                <p className="text-[11px] text-gray-400">Notificações de disparo, Câmera, Agenda, Microfone e Memória Blindada</p>
+              </div>
             </div>
-            <p className="text-[10px] text-gray-400">
-              Notificações de disparo, Câmera, Agenda de contatos, Microfone e Memória Blindada anti-limpeza.
-            </p>
             <button
               type="button"
               onClick={() => {
                 onClose();
                 if (onOpenPermissions) onOpenPermissions();
               }}
-              className="w-full bg-[#D4AF37]/20 hover:bg-[#D4AF37] text-[#D4AF37] hover:text-black font-bold py-2.5 px-3 rounded-lg border border-[#D4AF37]/40 transition-all text-xs uppercase tracking-wider flex items-center justify-center space-x-2 cursor-pointer"
+              className="w-full bg-[#D4AF37]/20 hover:bg-[#D4AF37] text-[#D4AF37] hover:text-black font-extrabold py-3 px-4 rounded-xl border border-[#D4AF37]/50 transition-all text-xs uppercase tracking-wider flex items-center justify-center space-x-2 cursor-pointer shadow-sm active:scale-95"
             >
-              <Shield className="w-4 h-4" />
+              <Shield className="w-4.5 h-4.5" />
               <span>Gerenciar Permissões & Dispositivo</span>
             </button>
+          </div>
+
+          {/* Importar & Exportar Backup */}
+          <div className="bg-[#0A0C10] border border-[#1F2229] rounded-xl p-4 space-y-3">
+            <div className="flex items-center space-x-3">
+              <div className="w-9 h-9 rounded-xl bg-[#A88B4B]/20 border border-[#A88B4B]/40 flex items-center justify-center text-[#A88B4B] shrink-0">
+                <Download className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="font-bold text-white text-xs uppercase tracking-wider">Backup & Restauração de Dados</h4>
+                <p className="text-[11px] text-gray-400">Exporte seu backup completo ou restaure dados a partir de um arquivo</p>
+              </div>
+            </div>
+
+            {exportStatus && (
+              <div className="p-2.5 bg-emerald-950/60 border border-emerald-500/40 rounded-xl text-emerald-300 text-xs font-semibold flex items-center space-x-2 animate-fadeIn">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>{exportStatus}</span>
+              </div>
+            )}
+
+            {importStatus && (
+              <div className="p-2.5 bg-[#A88B4B]/25 border border-[#A88B4B]/50 rounded-xl text-amber-200 text-xs font-semibold flex items-center space-x-2 animate-fadeIn">
+                <CheckCircle2 className="w-4 h-4 text-[#A88B4B] shrink-0" />
+                <span>{importStatus}</span>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+              <button
+                type="button"
+                onClick={handleExportJson}
+                className="bg-[#14171E] hover:bg-[#1E222B] text-gray-200 hover:text-white font-bold py-3 px-4 rounded-xl border border-slate-700 hover:border-[#A88B4B]/60 transition-all text-xs flex items-center justify-center space-x-2 cursor-pointer shadow-sm active:scale-95"
+              >
+                <Download className="w-4.5 h-4.5 text-[#A88B4B]" />
+                <span className="uppercase tracking-wider">Exportar Dados</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="bg-[#14171E] hover:bg-[#1E222B] text-gray-200 hover:text-white font-bold py-3 px-4 rounded-xl border border-slate-700 hover:border-[#A88B4B]/60 transition-all text-xs flex items-center justify-center space-x-2 cursor-pointer shadow-sm active:scale-95"
+              >
+                <Upload className="w-4.5 h-4.5 text-[#A88B4B]" />
+                <span className="uppercase tracking-wider">Importar Dados</span>
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".json,application/json"
+                className="hidden"
+                onChange={handleImportJson}
+              />
+            </div>
+
+            {onOpenSaveAndReset && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onOpenSaveAndReset();
+                }}
+                className="w-full text-center text-[11px] text-gray-400 hover:text-amber-400 underline pt-1 cursor-pointer"
+              >
+                Central de Salvamento Avançado (CSV, PDF e Zerar Dados)
+              </button>
+            )}
           </div>
 
           <div className="bg-[#0A0C10] border border-[#1F2229] rounded-xl p-4 space-y-3">
@@ -515,27 +700,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             >
               <MessageCircle className="w-4 h-4" />
               <span>Fale Conosco / Enviar Sugestão (WhatsApp)</span>
-            </button>
-          </div>
-
-          <div className="bg-[#0A0C10] border border-[#1F2229] rounded-xl p-4 space-y-3">
-            <div className="flex items-center space-x-2">
-              <Save className="w-4 h-4 text-amber-400" />
-              <h4 className="font-bold text-white text-xs uppercase tracking-wider">Salvar & Zerar Dados</h4>
-            </div>
-            <p className="text-[10px] text-gray-400">
-              Gerencie seus backups ou resete o aplicativo para o padrão.
-            </p>
-            <button
-              type="button"
-              onClick={() => {
-                onClose();
-                if (onOpenSaveAndReset) onOpenSaveAndReset();
-              }}
-              className="w-full bg-amber-500/20 hover:bg-amber-500 text-amber-400 hover:text-slate-950 font-bold py-2.5 px-3 rounded-lg border border-amber-500/40 transition-all text-xs uppercase tracking-wider flex items-center justify-center space-x-2 cursor-pointer"
-            >
-              <Save className="w-4 h-4" />
-              <span>Abrir Central de Dados</span>
             </button>
           </div>
 

@@ -451,12 +451,13 @@ REGRAS DE CLASSIFICAÇÃO E EXTRAÇÃO DE NOVOS CAMPOS:
    - Chip recomendado: "chip_2" (WhatsApp Suporte).
 
 2. **Correção / Outros Valores** (tags como CORR, CORRECAO, CORR_50, CORRECAO_30, R$ ..., etc.):
-   - Categoria: "Correção: R$ XX" (exemplo: "Correção: R$ 50", "Correção: R$ 80", "Correção de Valor").
+   - Categoria: Mapear para a categoria CG correspondente (ex: se for R$ 50, categorizar como "CG 50"; se for R$ 100, categorizar como "CG 100"; se for 10/150, "CG 10/150"; se houver padrão CG como CG 05/50, usar "CG 05/50").
    - Extrair campos dinâmicos (customFields):
      - "Valor Correção": valor identificado (ex: "R$ 50", "R$ 30", "R$ 80", "R$ 100", etc.)
      - "Tipo": "Ajuste / Crédito em Conta"
      - "Motivo": "Correção de Saldo"
-   - Chip recomendado: "chip_2" (WhatsApp Suporte).
+     - "Correção": "Sim"
+   - Chip recomendado: "chip_1" (WhatsApp Business).
 
 3. **Corre e Ganhe** (tags como CG05, CG5, CG10, CG, CORRE E GANHE, etc.):
    - Se for CG05/CG5 com bônus de R$ 50: Categoria "CG05/50"

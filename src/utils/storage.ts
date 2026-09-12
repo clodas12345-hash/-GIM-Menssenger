@@ -892,6 +892,43 @@ export function getContacts(): Contact[] {
       c = { ...c, group: 'CG10/150' };
       updated = true;
     }
+    // Auto-migrate contacts from "Correção" category to the corresponding CG category
+    if (c.group && (c.group.toLowerCase().includes('correção') || c.group.toLowerCase().includes('correcao') || c.group.toLowerCase().startsWith('corr:'))) {
+      const fullStr = `${c.name || ''} ${c.group || ''} ${c.notes || ''}`.toUpperCase();
+      let targetGroup = 'CG 50'; // Default for R$ 50 corrections
+      
+      const valMatch = fullStr.match(/(?:R\$|\$)?\s*(\d+)/);
+      const val = valMatch ? valMatch[1] : '50';
+
+      const cgMatch = fullStr.match(/CG\s*(\d+)(?:\s*[_\/\-\$]*\s*(\d+))?/i);
+      if (cgMatch) {
+        if (cgMatch[2]) {
+          targetGroup = `CG ${cgMatch[1].padStart(2, '0')}/${cgMatch[2]}`;
+        } else {
+          targetGroup = `CG ${cgMatch[1]}`;
+        }
+      } else if (val === '50') {
+        targetGroup = 'CG 50';
+      } else if (val === '100') {
+        targetGroup = 'CG 100';
+      } else if (val === '150') {
+        targetGroup = 'CG 10/150';
+      } else {
+        targetGroup = `CG ${val}`;
+      }
+
+      c = {
+        ...c,
+        group: targetGroup,
+        notes: (c.notes || '').includes('Correção') ? c.notes : `${c.notes ? c.notes + ' • ' : ''}Correção: R$ ${val}`,
+        customFields: {
+          ...(c.customFields || {}),
+          'Valor Correção': `R$ ${val}`,
+          'Correção': 'Sim'
+        }
+      };
+      updated = true;
+    }
     // Migrate 25/08 to 08/09 and update CG10 to R$ 150
     if (c.group && c.group.includes('25/08')) {
       c = {
@@ -1229,6 +1266,11 @@ export function getGroups(): ContactGroup[] {
 
   let loaded = loadFromStorage<ContactGroup[]>(STORAGE_KEYS.GROUPS, DEFAULT_GROUPS);
   let groupsUpdated = false;
+  const initialLoadedCount = loaded.length;
+  loaded = loaded.filter(g => !g.name.toLowerCase().includes('correção') && !g.name.toLowerCase().includes('correcao'));
+  if (loaded.length !== initialLoadedCount) {
+    groupsUpdated = true;
+  }
   loaded = loaded.map(g => {
     if (g.name === 'CG10' || g.name === 'CG10/1500') {
       groupsUpdated = true;

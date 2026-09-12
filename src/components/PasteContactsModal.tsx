@@ -63,24 +63,39 @@ export const PasteContactsModal: React.FC<PasteContactsModalProps> = ({
 
     // 1. Check Correção / Outros Valores (CORR, CORRECAO, CORREÇÃO, CORR_50, CORR$80, etc.)
     if (rawUpper.includes('CORR') || rawUpper.includes('CORRECAO') || rawUpper.includes('CORREÇÃO') || rawUpper.includes('AJUSTE') || rawUpper.includes('CREDITO')) {
-      chipId = 'chip_2';
-      chipName = 'Suporte';
-      
       const valMatch = rawUpper.match(/(?:CORR[A-Z_]*|CORRECAO[A-Z_]*|R\$|\$)\s*(\d+)/i) || rawNameStr.match(/\$?(\d+)/);
       const valAmount = valMatch ? `R$ ${valMatch[1]}` : 'R$ 50';
+      const numOnly = valMatch ? valMatch[1] : '50';
       
-      promoCode = `Correção • ${valAmount}`;
-      groupName = `Correção: ${valAmount}`;
-      notes = `Campanha: Correção de Saldo / Ajuste no valor de ${valAmount}. Tag: ${rawNameStr}`;
-      promoBadgeColor = 'bg-amber-500/20 text-amber-300 border-amber-500/40';
+      let targetGroup = `CG ${numOnly}`;
+      const cgMatch = rawUpper.match(/CG\s*(\d+)(?:\s*[_\/\-\$]*\s*(\d+))?/i);
+      if (cgMatch) {
+        if (cgMatch[2]) {
+          targetGroup = `CG ${cgMatch[1].padStart(2, '0')}/${cgMatch[2]}`;
+        } else {
+          targetGroup = `CG ${cgMatch[1]}`;
+        }
+      } else if (numOnly === '150') {
+        targetGroup = 'CG 10/150';
+      }
+
+      chipId = 'chip_1';
+      chipName = 'Business';
+      
+      promoCode = `CG • Correção ${valAmount}`;
+      groupName = targetGroup;
+      notes = `Campanha: Correção de Saldo / Ajuste no valor de ${valAmount} direcionada para ${targetGroup}. Tag: ${rawNameStr}`;
+      promoBadgeColor = 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40';
       customFields = {
         'Valor Correção': valAmount,
         'Tipo': 'Ajuste / Crédito em Conta',
-        'Motivo': 'Correção de Valores'
+        'Campanha': targetGroup,
+        'Correção': 'Sim'
       };
       categoryDetails = {
-        type: 'correcao',
+        type: 'cg_correcao',
         value: valAmount,
+        targetCg: targetGroup,
         tag: rawNameStr
       };
 

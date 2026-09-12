@@ -127,7 +127,41 @@ export const TopicGeneratorModal: React.FC<TopicGeneratorModalProps> = ({
     );
   };
 
-  // Carrega apenas a mensagem original na lista para o usuário revisar e aprovar (NÃO salva direto)
+  // Salva diretamente a mensagem original digitada pelo usuário, sem gerar ou salvar variações
+  const handleSaveOriginalDirectly = () => {
+    const cleanTopic = topicName.trim() || 'Meu Tópico';
+    const cleanHook = hook.trim();
+    if (!cleanHook) {
+      setErrorMsg('Por favor, preencha o campo Frase de Impacto com o texto da sua mensagem.');
+      return;
+    }
+    const intro = presentation.trim() ? `${presentation.trim()}: ` : '';
+    const originalContent = cleanHook.includes('{primeiro_nome}') || cleanHook.includes('{nome}')
+      ? `${intro}${cleanHook}`
+      : `{saudacao}, {primeiro_nome}! ${intro}${cleanHook}`;
+
+    const originalTemplate = {
+      title: `${cleanTopic} - Mensagem Original`,
+      content: originalContent,
+      category: cleanTopic,
+    };
+
+    onSaveTopic(cleanTopic, [originalTemplate]);
+    handleReset();
+    onClose();
+  };
+
+  // Salva apenas a mensagem original a partir da lista gerada (índice 0)
+  const handleSaveOriginalFromResults = () => {
+    if (generatedResults.length === 0) return;
+    const cleanTopic = topicName.trim() || 'Meu Tópico';
+    const originalTemplate = generatedResults[0];
+    onSaveTopic(cleanTopic, [originalTemplate]);
+    handleReset();
+    onClose();
+  };
+
+  // Carrega apenas a mensagem original na lista para o usuário revisar e aprovar
   const handlePreviewOriginalOnly = () => {
     const cleanTopic = topicName.trim() || 'Meu Tópico';
     const cleanHook = hook.trim();
@@ -288,9 +322,20 @@ export const TopicGeneratorModal: React.FC<TopicGeneratorModalProps> = ({
             <div className="pt-2 flex flex-col gap-2.5">
               <button
                 type="button"
+                onClick={handleSaveOriginalDirectly}
+                disabled={loading || !topicName.trim() || !hook.trim()}
+                className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold py-3.5 rounded-xl text-xs uppercase tracking-widest transition-all shadow-lg flex items-center justify-center space-x-2 cursor-pointer"
+                title="Salvar apenas a mensagem original digitada como modelo deste tópico, sem variações criadas"
+              >
+                <CheckSquare className="w-4 h-4" />
+                <span>Salvar Apenas Mensagem Original</span>
+              </button>
+
+              <button
+                type="button"
                 onClick={handleGenerate}
                 disabled={loading || !topicName.trim() || !hook.trim()}
-                className="w-full bg-[#A88B4B] hover:bg-[#C5A968] disabled:opacity-50 text-[#0A0C10] font-bold py-3.5 rounded-xl text-xs uppercase tracking-widest transition-all shadow-lg flex items-center justify-center space-x-2"
+                className="w-full bg-[#A88B4B] hover:bg-[#C5A968] disabled:opacity-50 text-[#0A0C10] font-bold py-3.5 rounded-xl text-xs uppercase tracking-widest transition-all shadow-lg flex items-center justify-center space-x-2 cursor-pointer"
               >
                 {loading ? (
                   <>
@@ -300,7 +345,7 @@ export const TopicGeneratorModal: React.FC<TopicGeneratorModalProps> = ({
                 ) : (
                   <>
                     <Sparkles className="w-4 h-4" />
-                    <span>Gerar {quantity} Mensagens para Revisão</span>
+                    <span>Gerar {quantity} Variações com IA</span>
                   </>
                 )}
               </button>
@@ -309,7 +354,7 @@ export const TopicGeneratorModal: React.FC<TopicGeneratorModalProps> = ({
                 type="button"
                 onClick={handlePreviewOriginalOnly}
                 disabled={loading || !topicName.trim() || !hook.trim()}
-                className="w-full bg-[#1F2229] hover:bg-[#2A2D35] text-gray-300 hover:text-white border border-[#2A2D35] disabled:opacity-50 font-bold py-2.5 rounded-xl text-xs uppercase tracking-widest transition-all flex items-center justify-center space-x-2"
+                className="w-full bg-[#1F2229] hover:bg-[#2A2D35] text-gray-300 hover:text-white border border-[#2A2D35] disabled:opacity-50 font-bold py-2.5 rounded-xl text-xs uppercase tracking-widest transition-all flex items-center justify-center space-x-2 cursor-pointer"
                 title="Carrega apenas a mensagem original na lista ao lado para você aprovar"
               >
                 <MessageSquare className="w-3.5 h-3.5 text-gray-400" />
@@ -402,15 +447,28 @@ export const TopicGeneratorModal: React.FC<TopicGeneratorModalProps> = ({
                             {isSelected ? ' [Aprovada]' : ' [Não Selecionada]'}
                           </span>
                         </label>
-                        <button
-                          type="button"
-                          onClick={() => removeResult(idx)}
-                          className="px-2.5 py-1 text-red-400 hover:text-white bg-red-500/10 hover:bg-red-500 rounded-md transition-all flex items-center space-x-1 border border-red-500/20"
-                          title="Excluir opção"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                          <span className="text-[10px] font-bold uppercase">Excluir</span>
-                        </button>
+                        <div className="flex items-center space-x-1.5">
+                          {isOriginal && (
+                            <button
+                              type="button"
+                              onClick={handleSaveOriginalFromResults}
+                              className="px-2.5 py-1 text-emerald-300 hover:text-white bg-emerald-600/20 hover:bg-emerald-600 rounded-md transition-all flex items-center space-x-1 border border-emerald-500/30 cursor-pointer"
+                              title="Salvar apenas esta mensagem original"
+                            >
+                              <CheckSquare className="w-3 h-3" />
+                              <span className="text-[10px] font-bold uppercase">Salvar Só Original</span>
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => removeResult(idx)}
+                            className="px-2.5 py-1 text-red-400 hover:text-white bg-red-500/10 hover:bg-red-500 rounded-md transition-all flex items-center space-x-1 border border-red-500/20 cursor-pointer"
+                            title="Excluir opção"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                            <span className="text-[10px] font-bold uppercase">Excluir</span>
+                          </button>
+                        </div>
                       </div>
                       <textarea
                         value={tmpl.content}
@@ -426,23 +484,34 @@ export const TopicGeneratorModal: React.FC<TopicGeneratorModalProps> = ({
             </div>
 
             {generatedResults.length > 0 && (
-              <div className="p-3 border-t border-[#1F2229] bg-[#0F1115] flex flex-col sm:flex-row gap-2">
-                <button
-                  type="button"
-                  onClick={handleSaveSelected}
-                  disabled={selectedIndices.length === 0}
-                  className="flex-1 bg-[#A88B4B] hover:bg-[#C5A968] disabled:opacity-40 disabled:cursor-not-allowed text-[#0A0C10] font-bold py-3 px-3 rounded-xl text-xs uppercase tracking-widest transition-all shadow-lg flex items-center justify-center space-x-2"
-                >
-                  <Check className="w-4 h-4" />
-                  <span>Aprovar e Salvar ({selectedIndices.length})</span>
-                </button>
+              <div className="p-3 border-t border-[#1F2229] bg-[#0F1115] flex flex-col gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <button
+                    type="button"
+                    onClick={handleSaveOriginalFromResults}
+                    className="flex-1 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 font-bold py-2.5 px-3 rounded-xl text-xs uppercase tracking-widest transition-all flex items-center justify-center space-x-1.5 cursor-pointer shadow-sm"
+                    title="Salva apenas a mensagem original, descartando as variações criadas pela IA"
+                  >
+                    <CheckSquare className="w-4 h-4" />
+                    <span>Salvar Apenas Original</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveSelected}
+                    disabled={selectedIndices.length === 0}
+                    className="flex-1 bg-[#A88B4B] hover:bg-[#C5A968] disabled:opacity-40 disabled:cursor-not-allowed text-[#0A0C10] font-bold py-2.5 px-3 rounded-xl text-xs uppercase tracking-widest transition-all shadow-lg flex items-center justify-center space-x-1.5 cursor-pointer"
+                  >
+                    <Check className="w-4 h-4" />
+                    <span>Salvar Selecionadas ({selectedIndices.length})</span>
+                  </button>
+                </div>
                 {selectedIndices.length < generatedResults.length && (
                   <button
                     type="button"
                     onClick={handleSaveAll}
-                    className="flex-1 bg-[#1F2229] hover:bg-[#2A2D35] text-gray-300 font-bold py-3 px-3 rounded-xl text-xs uppercase tracking-widest transition-all border border-[#2A2D35] flex items-center justify-center space-x-2"
+                    className="w-full bg-[#1F2229] hover:bg-[#2A2D35] text-gray-300 font-bold py-2 px-3 rounded-xl text-xs uppercase tracking-widest transition-all border border-[#2A2D35] flex items-center justify-center space-x-1.5 cursor-pointer"
                   >
-                    <Plus className="w-4 h-4" />
+                    <Plus className="w-3.5 h-3.5" />
                     <span>Salvar Todas ({generatedResults.length})</span>
                   </button>
                 )}

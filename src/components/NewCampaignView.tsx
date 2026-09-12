@@ -24,7 +24,9 @@ import {
   RefreshCw,
   Shuffle,
   Zap,
-  Ban
+  Ban,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { Contact, MessageTemplate, ScheduledCampaign, ContactGroup, CardItem, DispatchLogItem } from '../types';
 import { replaceTemplateVariables, formatPhoneDisplay, safeConfirm, cleanChipName, matchPhoneNumber, matchContact, isCategorySimilar } from '../utils/whatsapp';
@@ -233,6 +235,14 @@ export const NewCampaignView: React.FC<NewCampaignViewProps> = React.memo(({
   const [randomTopicTemplates, setRandomTopicTemplates] = useState<string[]>(() => draft?.randomTopicTemplates ?? []);
   const [customContent, setCustomContent] = useState<string>(() => draft?.customContent ?? '');
   const [activeTopic, setActiveTopic] = useState<string | null>(null);
+  const [expandedTopicMessages, setExpandedTopicMessages] = useState<Record<string, boolean>>({});
+
+  const toggleTopicExpanded = (category: string) => {
+    setExpandedTopicMessages(prev => ({
+      ...prev,
+      [category]: !prev[category]
+    }));
+  };
 
   // Step 3
   const [useVariations, setUseVariations] = useState<boolean>(() => draft?.useVariations ?? true);
@@ -845,32 +855,25 @@ export const NewCampaignView: React.FC<NewCampaignViewProps> = React.memo(({
 
   const handleSelectTopicCategory = (category: string, catTemplates: MessageTemplate[]) => {
     const topicId = `topic_cat_${category}`;
-    if (selectedTemplateId === topicId) {
-      setSelectedTemplateId('');
-      setSelectedCategoryName('');
-      setRandomTopicTemplates([]);
-      setCustomContent('');
-    } else {
-      const candidateTexts: string[] = [];
-      catTemplates.forEach((t) => {
-        if (t.content && t.content.trim()) candidateTexts.push(t.content.trim());
-        if (t.variations && t.variations.length > 0) {
-          t.variations.forEach((v) => {
-            if (v && v.trim()) candidateTexts.push(v.trim());
-          });
-        }
-      });
+    const candidateTexts: string[] = [];
+    catTemplates.forEach((t) => {
+      if (t.content && t.content.trim()) candidateTexts.push(t.content.trim());
+      if (t.variations && t.variations.length > 0) {
+        t.variations.forEach((v) => {
+          if (v && v.trim()) candidateTexts.push(v.trim());
+        });
+      }
+    });
 
-      setSelectedTemplateIds([]);
-      setSelectedTemplateId(topicId);
-      setSelectedCategoryName(category);
-      setRandomTopicTemplates(candidateTexts);
-      setUseVariations(true);
-      setCustomContent(
-        `🎲 [ENVIO ALEATÓRIO DA CAMPANHA: ${category}]\nSerá enviada uma mensagem sorteada das ${candidateTexts.length} opções cadastradas nesta campanha para cada destinatário.`
-      );
-      scrollToBottom();
-    }
+    setSelectedTemplateIds([]);
+    setSelectedTemplateId(topicId);
+    setSelectedCategoryName(category);
+    setRandomTopicTemplates(candidateTexts);
+    setUseVariations(true);
+    setCustomContent(
+      `🎲 [ENVIO ALEATÓRIO DA CAMPANHA: ${category}]\nSerá enviada uma mensagem sorteada das ${candidateTexts.length} opções cadastradas nesta campanha para cada destinatário.`
+    );
+    scrollToBottom();
   };
 
   const handleAddSchedule = () => {
@@ -1039,15 +1042,30 @@ ${remainingCount > 0 ? `⚠️ ${remainingCount} contato(s) ficaram de fora para
     });
   }, [groupedTemplates, selectedGroup]);
 
-  // Auto-select topic category similar to selectedGroup when entering Step 2 or changing group
+  // Auto-select topic category and activate Fixed Random campaign by default
   React.useEffect(() => {
-    if (step === 2 && selectedGroup && selectedGroup !== 'all' && selectedGroup !== 'sem_campanha') {
-      const bestMatch = allCategories.find(cat => isCategorySimilar(cat, selectedGroup));
-      if (bestMatch && (!activeTopic || !isCategorySimilar(activeTopic, selectedGroup))) {
-        setActiveTopic(bestMatch);
+    if (step === 2 && allCategories.length > 0) {
+      let targetCat: string | undefined;
+      if (selectedGroup && selectedGroup !== 'all' && selectedGroup !== 'sem_campanha') {
+        targetCat = allCategories.find(cat => isCategorySimilar(cat, selectedGroup));
+      }
+      if (!targetCat) {
+        targetCat = allCategories[0];
+      }
+
+      if (targetCat && (!activeTopic || (selectedGroup && selectedGroup !== 'all' && !isCategorySimilar(activeTopic, selectedGroup)))) {
+        setActiveTopic(targetCat);
+      }
+
+      // Se nenhum template/tópico foi selecionado ainda, ativa a campanha com Aleatório Fixo automaticamente
+      if (!selectedTemplateId && selectedTemplateIds.length === 0 && targetCat) {
+        const catTemplates = groupedTemplates[targetCat] || [];
+        if (catTemplates.length > 0) {
+          handleSelectTopicCategory(targetCat, catTemplates);
+        }
       }
     }
-  }, [step, selectedGroup, allCategories]);
+  }, [step, selectedGroup, allCategories, selectedTemplateId, selectedTemplateIds.length, groupedTemplates, activeTopic]);
 
   return (
     <div className="space-y-4">
@@ -1204,16 +1222,6 @@ ${remainingCount > 0 ? `⚠️ ${remainingCount} contato(s) ficaram de fora para
               </div>
             </div>
             <div className="flex items-center space-x-2">
-              <button
-                type="button"
-                onClick={() => handleSelectRandomCreatedTemplate()}
-                className="bg-purple-600/20 hover:bg-purple-600 text-purple-300 hover:text-white border border-purple-500/40 px-3.5 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all flex items-center space-x-1.5 shadow cursor-pointer"
-                title="Sortear e selecionar uma mensagem aleatória dentre as criadas"
-              >
-                <Sparkles className="w-3.5 h-3.5 text-purple-400" />
-                <span>🎲 Selecionar Aleatória</span>
-              </button>
-
               {(selectedTemplateId || selectedTemplateIds.length > 0) && (
                 <button
                   type="button"
@@ -1300,163 +1308,118 @@ ${remainingCount > 0 ? `⚠️ ${remainingCount} contato(s) ficaram de fora para
 
             {/* MAIN AREA: CONTENT LIST */}
             <div className="lg:col-span-9 space-y-6">
-              {selectedGroup && selectedGroup !== 'all' && selectedGroup !== 'sem_campanha' && (
-                <div className="bg-amber-500/10 border border-amber-500/30 p-3 rounded-xl flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center space-x-2 text-xs text-amber-300 font-bold">
-                    <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
-                    <span>
-                      Buscando por semelhança com a categoria da agenda: <strong className="text-white underline">{selectedGroup}</strong>
-                    </span>
-                  </div>
-                  {activeTopic && (
-                    <button
-                      type="button"
-                      onClick={() => setActiveTopic(null)}
-                      className="text-[10px] text-gray-400 hover:text-white underline font-semibold cursor-pointer"
-                    >
-                      Ver todos os tópicos
-                    </button>
-                  )}
-                </div>
-              )}
               <div className="space-y-4">
                 {allCategories
                   .filter(cat => !activeTopic || cat === activeTopic)
                   .map(category => {
                     const catTemplates = groupedTemplates[category];
                     const isTopicSelected = selectedTemplateId === `topic_cat_${category}`;
+                    const isExpanded = !!expandedTopicMessages[category];
 
                     return (
                       <div key={category} className="bg-[#0A0C10] border border-[#1F2229] rounded-xl overflow-hidden shadow-lg">
                         <div className="bg-[#0F1115] px-4 py-3 border-b border-[#1F2229] flex flex-wrap items-center justify-between gap-2">
-                          <h4 className="text-[#A88B4B] font-serif italic text-base">{category}</h4>
                           <div className="flex items-center space-x-2">
+                            <h4 className="text-[#A88B4B] font-serif italic text-base">{category}</h4>
+                            <span className="text-[10px] bg-[#1F2229] text-gray-400 font-bold px-2 py-0.5 rounded-full">
+                              {catTemplates.length} {catTemplates.length === 1 ? 'msg' : 'msgs'}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center space-x-2">
+                            {/* Botão de retrair/expandir mensagens: retraídas por padrão */}
                             <button
                               type="button"
-                              onClick={() => handleSelectRandomCreatedTemplate(category)}
-                              className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all bg-purple-500/10 text-purple-300 hover:bg-purple-500 hover:text-white border border-purple-500/30 cursor-pointer"
-                              title={`Sortear 1 mensagem aleatória deste tópico "${category}"`}
+                              onClick={() => toggleTopicExpanded(category)}
+                              className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider text-gray-300 hover:text-white bg-[#15181E] hover:bg-[#1F2229] border border-[#1F2229] transition-all cursor-pointer"
+                              title={isExpanded ? 'Retrair mensagens deste tópico' : 'Expandir e visualizar mensagens deste tópico'}
                             >
-                              <Sparkles className="w-3 h-3" />
-                              <span>Sortear 1 Aleatória</span>
+                              {isExpanded ? <ChevronUp className="w-3 h-3 text-[#A88B4B]" /> : <ChevronDown className="w-3 h-3 text-gray-400" />}
+                              <span>{isExpanded ? 'Retrair Mensagens' : `Ver Mensagens (${catTemplates.length})`}</span>
                             </button>
+
+                            {/* Outro botão: sempre ativado */}
                             <button
                               type="button"
                               onClick={() => handleSelectTopicCategory(category, catTemplates)}
                               className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer shadow-sm ${
                                 isTopicSelected
                                   ? 'bg-[#A88B4B] text-[#0A0C10] ring-2 ring-[#A88B4B]/30'
-                                  : 'bg-purple-500/15 text-purple-300 hover:bg-purple-600 hover:text-white border border-purple-500/30'
+                                  : 'bg-purple-500/20 text-purple-300 hover:bg-[#A88B4B] hover:text-[#0A0C10] border border-purple-500/40'
                               }`}
-                              title="Ao selecionar a campanha, a escolha aleatória fica permanentemente fixa"
+                              title="Campanha com escolha aleatória permanentemente fixa ativada"
                             >
                               <Sparkles className="w-3.5 h-3.5" />
-                              <span>{isTopicSelected ? '✓ Campanha Selecionada (Aleatório Fixo)' : '🎲 Selecionar Campanha (Aleatório Fixo)'}</span>
+                              <span>{isTopicSelected ? '✓ Campanha Ativada (Aleatório Fixo)' : '🎲 Ativar Campanha (Aleatório Fixo)'}</span>
                             </button>
                           </div>
                         </div>
 
-                        {/* Banner quando a campanha está selecionada com aleatório fixo */}
-                        {isTopicSelected && (
-                          <div className="bg-amber-500/10 border-b border-amber-500/30 px-4 py-2 flex items-center justify-between text-xs text-amber-300 font-bold">
-                            <div className="flex items-center space-x-2">
-                              <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
-                              <span>Escolha aleatória fixa ativada: {catTemplates.length} mensagens sorteadas a cada disparo</span>
-                            </div>
-                            <span className="bg-[#A88B4B] text-[#0A0C10] text-[9px] uppercase font-black px-2 py-0.5 rounded shrink-0">
-                              Aleatório Fixo
-                            </span>
-                          </div>
-                        )}
+                        {/* Mensagens RETRAÍDAS por padrão - só aparecem se expandidas */}
+                        {isExpanded && (
+                          <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-[#1F2229] bg-[#0C0E12]/80">
+                            {catTemplates.map(tmpl => {
+                              const isMultiSelected = selectedTemplateIds.includes(tmpl.id);
+                              const isSingleSelected = selectedTemplateId === tmpl.id;
+                              const isSelected = isMultiSelected || isSingleSelected;
+                              const multiIndex = selectedTemplateIds.indexOf(tmpl.id);
 
-                        <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                          {catTemplates.map(tmpl => {
-                            const isMultiSelected = selectedTemplateIds.includes(tmpl.id);
-                            const isSingleSelected = selectedTemplateId === tmpl.id;
-                            const isSelected = isMultiSelected || isSingleSelected;
-                            const multiIndex = selectedTemplateIds.indexOf(tmpl.id);
-
-                            return (
-                              <div
-                                key={tmpl.id}
-                                id={`new-campaign-tmpl-${tmpl.id}`}
-                                onClick={() => handleTemplateChange(tmpl.id)}
-                                className={`p-4 rounded-xl border cursor-pointer transition-all flex flex-col justify-between space-y-3 ${
-                                  isSelected
-                                    ? 'bg-[#A88B4B]/10 border-[#A88B4B] shadow-lg shadow-[#A88B4B]/5 ring-1 ring-[#A88B4B]'
-                                    : 'bg-[#15181E] border-[#1F2229] hover:border-gray-700'
-                                }`}
-                              >
-                                <div className="flex items-center justify-between">
-                                  <h5 className={`font-serif italic text-sm ${isSelected ? 'text-white' : 'text-gray-300'}`}>
-                                    {tmpl.title}
-                                  </h5>
-                                  <div className="flex items-center space-x-2">
-                                    <label 
-                                      onClick={(e) => e.stopPropagation()}
-                                      className="flex items-center space-x-1 cursor-pointer bg-[#0A0C10] px-2 py-1 rounded border border-[#1F2229] hover:border-[#A88B4B]/50"
-                                      title="Selecionar para envio aleatório conjunto"
-                                    >
-                                      <input
-                                        type="checkbox"
-                                        checked={isMultiSelected}
-                                        onChange={() => handleToggleTemplateSelection(tmpl.id)}
-                                        className="w-3.5 h-3.5 rounded text-[#A88B4B] focus:ring-[#A88B4B] bg-[#0A0C10] border-[#1F2229]"
-                                      />
-                                      <span className="text-[10px] text-[#A88B4B] font-bold">
-                                        {selectedTemplateIds.length > 1 && isMultiSelected ? `#${multiIndex + 1}` : 'Selecionar'}
-                                      </span>
-                                    </label>
-                                    <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${isSelected ? 'border-[#A88B4B] bg-[#A88B4B]' : 'border-gray-600'}`}>
-                                      {isSelected && <Check className="w-2.5 h-2.5 text-[#0A0C10]" />}
+                              return (
+                                <div
+                                  key={tmpl.id}
+                                  id={`new-campaign-tmpl-${tmpl.id}`}
+                                  onClick={() => handleTemplateChange(tmpl.id)}
+                                  className={`p-4 rounded-xl border cursor-pointer transition-all flex flex-col justify-between space-y-3 ${
+                                    isSelected
+                                      ? 'bg-[#A88B4B]/10 border-[#A88B4B] shadow-lg shadow-[#A88B4B]/5 ring-1 ring-[#A88B4B]'
+                                      : 'bg-[#15181E] border-[#1F2229] hover:border-gray-700'
+                                  }`}
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <h5 className={`font-serif italic text-sm ${isSelected ? 'text-white' : 'text-gray-300'}`}>
+                                      {tmpl.title}
+                                    </h5>
+                                    <div className="flex items-center space-x-2">
+                                      <label 
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="flex items-center space-x-1 cursor-pointer bg-[#0A0C10] px-2 py-1 rounded border border-[#1F2229] hover:border-[#A88B4B]/50"
+                                        title="Selecionar para envio aleatório conjunto"
+                                      >
+                                        <input
+                                          type="checkbox"
+                                          checked={isMultiSelected}
+                                          onChange={() => handleToggleTemplateSelection(tmpl.id)}
+                                          className="w-3.5 h-3.5 rounded text-[#A88B4B] focus:ring-[#A88B4B] bg-[#0A0C10] border-[#1F2229]"
+                                        />
+                                        <span className="text-[10px] text-[#A88B4B] font-bold">
+                                          {selectedTemplateIds.length > 1 && isMultiSelected ? `#${multiIndex + 1}` : 'Selecionar'}
+                                        </span>
+                                      </label>
+                                      <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${isSelected ? 'border-[#A88B4B] bg-[#A88B4B]' : 'border-gray-600'}`}>
+                                        {isSelected && <Check className="w-2.5 h-2.5 text-[#0A0C10]" />}
+                                      </div>
                                     </div>
                                   </div>
+                                  <p className={`text-xs font-mono line-clamp-3 leading-relaxed ${isSelected ? 'text-gray-200' : 'text-gray-500'}`}>
+                                    {tmpl.content}
+                                  </p>
+                                  {tmpl.variations && tmpl.variations.length > 0 && (
+                                    <div className="flex items-center space-x-1 text-[10px] text-purple-400 bg-purple-950/40 border border-purple-500/20 px-2 py-0.5 rounded w-fit">
+                                      <Sparkles className="w-3 h-3" />
+                                      <span>{tmpl.variations.length} variações anti-spam</span>
+                                    </div>
+                                  )}
                                 </div>
-                                <p className={`text-xs font-mono line-clamp-3 leading-relaxed ${isSelected ? 'text-gray-200' : 'text-gray-500'}`}>
-                                  {tmpl.content}
-                                </p>
-                                {tmpl.variations && tmpl.variations.length > 0 && (
-                                  <div className="flex items-center space-x-1 text-[10px] text-purple-400 bg-purple-950/40 border border-purple-500/20 px-2 py-0.5 rounded w-fit">
-                                    <Sparkles className="w-3 h-3" />
-                                    <span>{tmpl.variations.length} variações anti-spam</span>
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
                     );
                   })}
               </div>
 
               <div className="pt-4 border-t border-[#1F2229] space-y-3">
-                {selectedTemplateIds.length > 1 && (
-                  <div className="bg-purple-950/30 border border-purple-500/40 p-3.5 rounded-xl flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <Sparkles className="w-4 h-4 text-purple-400 animate-pulse" />
-                      <span className="text-xs text-purple-200 font-bold">
-                        🎲 Modo Envio Aleatório Ativo: {selectedTemplateIds.length} mensagens criadas selecionadas ({randomTopicTemplates.length} variações no total)
-                      </span>
-                    </div>
-                    <span className="text-[10px] text-purple-400 bg-purple-900/40 px-2.5 py-1 rounded-lg border border-purple-500/40 uppercase font-black tracking-wider">
-                      Sorteio a cada contato
-                    </span>
-                  </div>
-                )}
-                {randomTopicTemplates.length > 1 && selectedTemplateIds.length <= 1 && (
-                  <div className="bg-purple-950/20 border border-purple-500/30 p-3.5 rounded-xl flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <Sparkles className="w-4 h-4 text-purple-400" />
-                      <span className="text-xs text-purple-200 font-bold">
-                        Modo Anti-Spam Ativo: {randomTopicTemplates.length} variações cadastradas
-                      </span>
-                    </div>
-                    <span className="text-[10px] text-purple-400 bg-purple-900/30 px-2 py-0.5 rounded border border-purple-500/30">
-                      Alternadas a cada envio
-                    </span>
-                  </div>
-                )}
                 <div className="flex items-center justify-between">
                   <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
                     Texto Final do Disparo (Editável):

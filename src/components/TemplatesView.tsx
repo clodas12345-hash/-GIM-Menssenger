@@ -16,7 +16,8 @@ import {
   Bike,
   Star,
   ListFilter,
-  ChevronDown
+  ChevronDown,
+  CheckSquare
 } from 'lucide-react';
 import { MessageTemplate, Contact } from '../types';
 import { AVAILABLE_VARIABLES, replaceTemplateVariables, safeConfirm, matchPhoneNumber, matchContact } from '../utils/whatsapp';
@@ -614,6 +615,36 @@ export const TemplatesView: React.FC<TemplatesViewProps> = React.memo(({
         content: content.trim(),
         vehicleType: vehicleType,
         variations: variations.filter((v) => v.trim().length > 0),
+        createdAt: new Date().toISOString(),
+      };
+      onAddTemplate(newTmpl);
+    }
+
+    setIsCreating(false);
+    setEditingTemplate(null);
+  };
+
+  const handleSaveOriginalOnly = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!title.trim() || !content.trim()) return;
+
+    if (editingTemplate) {
+      onUpdateTemplate({
+        ...editingTemplate,
+        title: title.trim(),
+        category: category.trim(),
+        content: content.trim(),
+        vehicleType: vehicleType,
+        variations: [], // Salva exclusivamente o texto original, descartando variações
+      });
+    } else {
+      const newTmpl: MessageTemplate = {
+        id: `custom_tmpl_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        title: title.trim(),
+        category: category.trim(),
+        content: content.trim(),
+        vehicleType: vehicleType,
+        variations: [], // Salva exclusivamente o texto original, descartando variações
         createdAt: new Date().toISOString(),
       };
       onAddTemplate(newTmpl);
@@ -1234,16 +1265,6 @@ export const TemplatesView: React.FC<TemplatesViewProps> = React.memo(({
 
                         <button
                           type="button"
-                          onClick={() => handleSelectRandomTemplate(category)}
-                          className="px-2.5 py-1 text-purple-400 hover:text-white hover:bg-purple-600 bg-purple-500/10 border border-purple-500/30 rounded-lg transition-all shadow-sm flex items-center space-x-1.5 cursor-pointer text-xs font-bold"
-                          title={`Sortear e selecionar mensagem aleatória do tópico "${category}"`}
-                        >
-                          <Sparkles className="w-3.5 h-3.5" />
-                          <span className="hidden sm:inline">Sortear Aleatória</span>
-                        </button>
-
-                        <button
-                          type="button"
                           onClick={() => setEditingTopic({ oldName: category, currentName: category })}
                           className="p-1.5 text-[#A88B4B] hover:text-white hover:bg-[#A88B4B] bg-[#A88B4B]/15 border border-[#A88B4B]/30 rounded-lg transition-all shadow-sm flex items-center justify-center cursor-pointer"
                           title={`Editar nome do tópico "${category}"`}
@@ -1551,15 +1572,31 @@ export const TemplatesView: React.FC<TemplatesViewProps> = React.memo(({
                       setEditingTemplate(null);
                     }
                   }}
-                  className="px-4 py-3 sm:py-2 rounded-xl text-gray-400 text-[10px] hover:bg-[#0A0C10] font-bold uppercase tracking-widest border border-[#1F2229] sm:border-none"
+                  className="px-4 py-3 sm:py-2 rounded-xl text-gray-400 text-[10px] hover:bg-[#0A0C10] font-bold uppercase tracking-widest border border-[#1F2229] sm:border-none cursor-pointer"
                 >
                   {isMobile ? 'Voltar para o App' : 'Cancelar'}
                 </button>
+                {variations.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleSaveOriginalOnly}
+                    className="px-5 py-3 sm:py-2 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 font-bold text-[10px] uppercase tracking-widest transition-all shadow-sm flex items-center justify-center space-x-1.5 cursor-pointer"
+                    title="Salva apenas a mensagem original digitada acima, descartando as variações criadas"
+                  >
+                    <CheckSquare className="w-3.5 h-3.5" />
+                    <span>Salvar Apenas Original</span>
+                  </button>
+                )}
                 <button
                   type="submit"
-                  className="px-6 py-4 sm:py-2 rounded-xl bg-[#A88B4B] hover:bg-[#C5A968] text-[#0A0C10] font-bold text-[10px] uppercase tracking-widest shadow-lg shadow-[#A88B4B]/20"
+                  className="px-6 py-4 sm:py-2 rounded-xl bg-[#A88B4B] hover:bg-[#C5A968] text-[#0A0C10] font-bold text-[10px] uppercase tracking-widest shadow-lg shadow-[#A88B4B]/20 cursor-pointer flex items-center justify-center space-x-1.5"
                 >
-                  {editingTemplate ? 'Salvar Alterações' : 'Salvar Mensagem'}
+                  <Check className="w-3.5 h-3.5" />
+                  <span>
+                    {variations.length > 0
+                      ? 'Salvar com Variações'
+                      : (editingTemplate ? 'Salvar Alterações' : 'Salvar Mensagem')}
+                  </span>
                 </button>
               </div>
             </form>

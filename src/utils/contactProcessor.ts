@@ -68,11 +68,25 @@ export function normalizeCategoryName(rawTag: string): string {
     return dateMatch ? `Taxa Zero (${dateMatch[1]})` : 'Taxa Zero';
   }
 
-  // 3. Correção / Ajuste (CORR / CORRECAO / AJUSTE)
+  // 3. Correção / Ajuste (CORR / CORRECAO / AJUSTE) -> Redireciona para a categoria CG correspondente
   if (tagUpper.includes('CORR') || tagUpper.includes('CORRECAO') || tagUpper.includes('CORREÇÃO') || tagUpper.includes('AJUSTE') || tagUpper.includes('CREDITO')) {
+    const cgMatch = tagUpper.match(/CG\s*(\d+)(?:\s*[\/\-_$]\s*(\d+))?/i);
+    if (cgMatch) {
+      if (cgMatch[2]) {
+        return `CG ${cgMatch[1].padStart(2, '0')}/${cgMatch[2]}`;
+      } else {
+        const num = cgMatch[1];
+        if (num === '5' || num === '05') return 'CG 05/100';
+        if (num === '10') return 'CG 10/150';
+        return `CG ${num.padStart(2, '0')}`;
+      }
+    }
     const valMatch = rawTag.match(/(?:R\$|\$)?\s*(\d+)/i);
-    const val = valMatch ? `R$ ${valMatch[1]}` : 'R$ 50';
-    return `Correção: ${val}`;
+    const val = valMatch ? valMatch[1] : '50';
+    if (val === '50') return 'CG 50';
+    if (val === '100') return 'CG 100';
+    if (val === '150') return 'CG 10/150';
+    return `CG ${val}`;
   }
 
   // 4. Indicação (INDI)

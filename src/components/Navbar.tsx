@@ -18,10 +18,7 @@ import {
   BarChart3,
   MessageCircle,
   Save,
-  Shield,
-  Activity,
-  Download,
-  Upload
+  Activity
 } from 'lucide-react';
 import { ScheduledCampaign, DispatchLogItem, AppSettings } from '../types';
 import { GKDLogo } from './GKDLogo';
@@ -216,41 +213,11 @@ export const Navbar: React.FC<NavbarProps> = React.memo(({
             {/* PLUS BUTTON WAS HERE */}
             
             <button
-              onClick={onOpenPermissions}
-              title="Permissões & Dispositivo (Notificações, Câmera, Agenda, Memória)"
-              className="p-1.5 sm:p-2 text-gray-400 hover:text-[#D4AF37] hover:bg-[#15181E] rounded transition-colors flex items-center gap-1.5"
-            >
-              <Shield className="w-5 h-5 text-[#D4AF37]" />
-              <span className="hidden xl:inline text-xs font-semibold text-gray-300">Permissões</span>
-            </button>
-
-            <button
               onClick={() => setSoundEnabled(!soundEnabled)}
               title={soundEnabled ? 'Sons Ativados' : 'Sons Mutos'}
               className="p-1.5 sm:p-2 text-gray-400 hover:text-white hover:bg-[#15181E] rounded transition-colors hidden sm:flex"
             >
               {soundEnabled ? <Volume2 className="w-5 h-5 text-[#A88B4B]" /> : <VolumeX className="w-5 h-5 text-gray-600" />}
-            </button>
-            
-            {/* CELLPHONE BUTTON WAS HERE */}
-            
-            {/* HELP WAS HERE - Wait, let me restore Help if needed, user didn't ask to remove it */}
-            <button
-              onClick={onOpenHelp}
-              title="Exportar Dados (Backup JSON / CSV)"
-              className="p-1.5 sm:p-2 text-gray-400 hover:text-white hover:bg-[#15181E] rounded transition-colors flex items-center gap-1.5 bg-[#14171E] border border-slate-800"
-            >
-              <Download className="w-4 h-4 text-[#A88B4B]" />
-              <span className="hidden lg:inline text-xs font-semibold text-gray-300">Exportar</span>
-            </button>
-
-            <button
-              onClick={onOpenHelp}
-              title="Importar Dados de Backup"
-              className="p-1.5 sm:p-2 text-gray-400 hover:text-white hover:bg-[#15181E] rounded transition-colors flex items-center gap-1.5 bg-[#14171E] border border-slate-800"
-            >
-              <Upload className="w-4 h-4 text-[#A88B4B]" />
-              <span className="hidden lg:inline text-xs font-semibold text-gray-300">Importar</span>
             </button>
 
             <button

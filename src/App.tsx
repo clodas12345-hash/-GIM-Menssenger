@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { 
   Contact, 
   MessageTemplate, 
@@ -443,9 +443,152 @@ export default function App() {
     }
   }, [groups]);
 
+  // Navegação com histórico do navegador / botão Voltar do celular (Android Back Button)
+  const tabHistoryRef = useRef<string[]>(['dashboard']);
+
+  // Função para reforçar a pilha de retenção (evita saída acidental ao clicar 2x rápido)
+  const pumpHistoryGuard = useCallback(() => {
+    try {
+      // Garante múltiplas entradas para que cliques duplos rápidos nunca alcancem a saída do app
+      for (let i = 0; i < 3; i++) {
+        window.history.pushState({ appTab: 'guard', ts: Date.now() + i }, '');
+      }
+    } catch (e) {}
+  }, []);
+
+  // Função centralizada para mudar de tela registrando no histórico
+  const navigateToTab = useCallback((tab: string) => {
+    setActiveTab(tab);
+    // Se não for a mesma tela atual
+    const historyStack = tabHistoryRef.current;
+    if (historyStack[historyStack.length - 1] !== tab) {
+      historyStack.push(tab);
+      try {
+        window.history.pushState({ appTab: tab, timestamp: Date.now() }, '');
+      } catch (e) {
+        // Ignora erros em sandbox ou iframes com restrições
+      }
+    }
+    pumpHistoryGuard();
+  }, [pumpHistoryGuard]);
+
+  // Interceptar o botão voltar físico/gesto do celular (popstate)
+  useEffect(() => {
+    // Garante estado inicial na pilha do navegador com camada de retenção
+    try {
+      window.history.replaceState({ appTab: 'dashboard', timestamp: Date.now() }, '');
+      for (let i = 0; i < 5; i++) {
+        window.history.pushState({ appTab: 'guard', timestamp: Date.now() + i }, '');
+      }
+    } catch (e) {
+      // Ignora erro se indisponível
+    }
+
+    const handlePopState = (event: PopStateEvent) => {
+      // Sempre reabastece imediatamente a barreira do histórico para nunca esvaziar a pilha do navegador
+      try {
+        window.history.pushState({ appTab: 'guard', timestamp: Date.now() }, '');
+      } catch (e) {}
+
+      // 1. Se houver algum modal aberto, fecha o modal primeiro sem trocar de tela
+      if (isAiModalOpen) {
+        setIsAiModalOpen(false);
+        return;
+      }
+      if (isTopicGeneratorOpen) {
+        setIsTopicGeneratorOpen(false);
+        return;
+      }
+      if (isSettingsModalOpen) {
+        setIsSettingsModalOpen(false);
+        return;
+      }
+      if (isHelpModalOpen) {
+        setIsHelpModalOpen(false);
+        return;
+      }
+      if (isApkExportModalOpen) {
+        setIsApkExportModalOpen(false);
+        return;
+      }
+      if (isPermissionsModalOpen) {
+        setIsPermissionsModalOpen(false);
+        return;
+      }
+      if (isLogoInfoModalOpen) {
+        setIsLogoInfoModalOpen(false);
+        return;
+      }
+      if (isSaveAndResetOpen) {
+        setIsSaveAndResetOpen(false);
+        return;
+      }
+      if (isLimit50ModalOpen) {
+        setIsLimit50ModalOpen(false);
+        return;
+      }
+      if (activeDispatcherCampaign) {
+        setActiveDispatcherCampaign(null);
+        return;
+      }
+      if (editingCampaign) {
+        setEditingCampaign(null);
+        return;
+      }
+      if (pendingConfirmContact) {
+        setPendingConfirmContact(null);
+        return;
+      }
+      if (dueCampaignAlert) {
+        setDueCampaignAlert(null);
+        return;
+      }
+      if (ruleViolationModal.isOpen) {
+        setRuleViolationModal(prev => ({ ...prev, isOpen: false }));
+        return;
+      }
+
+      // 2. Navegação entre páginas/telas do aplicativo
+      const historyStack = tabHistoryRef.current;
+      if (historyStack.length > 1) {
+        // Remove a tela atual da pilha interna
+        historyStack.pop();
+        const previousTab = historyStack[historyStack.length - 1] || 'dashboard';
+        setActiveTab(previousTab);
+      } else {
+        // Já está no painel inicial ('dashboard')
+        // Permanece no aplicativo com segurança sem fechar
+        setActiveTab('dashboard');
+        tabHistoryRef.current = ['dashboard'];
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [
+    activeTab,
+    isAiModalOpen,
+    isTopicGeneratorOpen,
+    isSettingsModalOpen,
+    isHelpModalOpen,
+    isApkExportModalOpen,
+    isPermissionsModalOpen,
+    isLogoInfoModalOpen,
+    isSaveAndResetOpen,
+    isLimit50ModalOpen,
+    activeDispatcherCampaign,
+    editingCampaign,
+    pendingConfirmContact,
+    dueCampaignAlert,
+    ruleViolationModal.isOpen,
+  ]);
+
   useEffect(() => {
     // Always start on dashboard / painel principal
     setActiveTab('dashboard');
+    tabHistoryRef.current = ['dashboard'];
   }, []);
 
   const syncGroupsWithContacts = React.useCallback((currentContacts: Contact[]) => {
@@ -1115,7 +1258,7 @@ export default function App() {
 
     updateTemplatesState([...newTemplates, ...templates]);
     showToast(`Tópico "${topicName}" criado com ${newTemplates.length} mensagens!`);
-    setActiveTab('templates');
+    navigateToTab('templates');
   };
 
   const handleUpdateTemplate = (tmpl: MessageTemplate) => {
@@ -1290,7 +1433,7 @@ export default function App() {
       selectedGroup: dominantGroup,
       title: 'Disparo ' + new Date().toLocaleDateString('pt-BR')
     }));
-    setActiveTab('campaigns');
+    navigateToTab('campaigns');
   };
 
   const handleAdvanceCampaign = (campaignId: string, minutes: number = 60) => {
@@ -1655,12 +1798,12 @@ export default function App() {
       {/* Top Navbar */}
       <Navbar
         activeTab={activeTab}
-        setActiveTab={setActiveTab}
+        setActiveTab={navigateToTab}
         activeCampaignsCount={activeCampaignsCount}
         dueCampaignsCount={dueCampaigns.length}
         soundEnabled={settings.soundEnabled}
         setSoundEnabled={(val) => updateSettingsState({ ...settings, soundEnabled: val })}
-        onOpenNewCampaign={() => setActiveTab('campaigns')}
+        onOpenNewCampaign={() => navigateToTab('campaigns')}
         onOpenSettings={() => setIsSettingsModalOpen(true)}
         onOpenHelp={() => setIsHelpModalOpen(true)}
         onOpenApkExport={() => setIsApkExportModalOpen(true)}
@@ -1697,8 +1840,8 @@ export default function App() {
             logs={logs}
             settings={settings}
             isAppReady={isAppReady}
-            onNavigate={setActiveTab}
-            onOpenNewCampaign={() => setActiveTab('campaigns')}
+            onNavigate={navigateToTab}
+            onOpenNewCampaign={() => navigateToTab('campaigns')}
             onOpenAiModal={() => setIsAiModalOpen(true)}
             onLaunchCampaign={(camp) => setActiveDispatcherCampaign(camp)}
             onDeleteCampaign={handleDeleteCampaign}
@@ -1756,12 +1899,12 @@ export default function App() {
             onOpenAiModal={() => setIsAiModalOpen(true)}
             onOpenTopicGenerator={() => setIsTopicGeneratorOpen(true)}
             onSendWhatsAppToContact={handleSendWhatsAppToContact}
-            onNavigate={setActiveTab}
+            onNavigate={navigateToTab}
           />
         )}
 
         {activeTab === 'cards' && (
-          <CardsView onNavigate={setActiveTab} />
+          <CardsView onNavigate={navigateToTab} />
         )}
 
         {activeTab === 'voice' && (
@@ -1781,7 +1924,7 @@ export default function App() {
             defaultInterval={settings.defaultIntervalSeconds}
             defaultSendMode={settings.sendMode}
             onScheduleCampaign={handleScheduleCampaign}
-            onNavigate={setActiveTab}
+            onNavigate={navigateToTab}
           />
         )}
 
@@ -1865,6 +2008,17 @@ export default function App() {
         onOpenSaveAndReset={() => setIsSaveAndResetOpen(true)}
         onOpenPermissions={() => setIsPermissionsModalOpen(true)}
         logs={logs}
+        contacts={contacts}
+        campaigns={campaigns}
+        templates={templates}
+        groups={groups}
+        onRefreshData={() => {
+          setContacts(getContacts());
+          setLogs(getDispatchLogs());
+          setCampaigns(getCampaigns());
+          setTemplates(getTemplates());
+          setGroups(getGroups());
+        }}
         onReportBlocked24h={handleReportWhatsAppBlocked}
         onUnblockWhatsApp={handleUnblockWhatsApp}
         onResetChipLogs={handleResetChipLogs}
@@ -1924,7 +2078,7 @@ export default function App() {
         }}
         onOpenHistory={() => {
           setIsLimit50ModalOpen(false);
-          setActiveTab('history');
+          navigateToTab('history');
         }}
       />
 
