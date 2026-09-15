@@ -135,7 +135,11 @@ function classifyContactsLocally(items, knownCategories = []) {
     const id = item.id !== void 0 ? item.id : idx;
     let cleanName = raw.trim();
     cleanName = cleanName.replace(/^[.\s_-]+/, "");
+    cleanName = cleanName.replace(/(?:^|[\s\.\-_\|\[\(])T[\_\-\s]?\d{1,3}(?:$|[\s\.\-_\|\]\)])/gi, " ").trim();
     let category = item.currentGroup || "Agenda de Contatos";
+    if (/^T[\_\-\s]?\d{1,3}$/i.test(category)) {
+      category = "Agenda de Contatos";
+    }
     let isNewCategory = false;
     let chipId = "chip_2";
     let chipName = "WhatsApp Suporte";
@@ -153,25 +157,29 @@ function classifyContactsLocally(items, knownCategories = []) {
       categoryDetails["type"] = "taxa_zero";
       categoryDetails["value"] = "0%";
       cleanName = cleanName.replace(/[-_]?(TX0|TXO|TAXA\s*ZERO)[-_]?(.*)$/i, "").trim();
-    } else if (/CG\s*0?5|CG\s*10|CORRE\s*E\s*GANHE/i.test(raw)) {
-      if (/100/i.test(raw)) {
-        category = "CG05/100";
-        customFields["Meta Corridas"] = "5 corridas";
-        customFields["B\xF4nus"] = "R$ 100";
-      } else if (/CG\s*10/i.test(raw)) {
-        category = "CG10";
+    } else if (/CG|CORRE\s*E\s*GANHE/i.test(raw)) {
+      const cgMatch = upper.match(/CG\s*(\d+)(?:\s*[_\/\-\$]*\s*(\d+))?/i);
+      const num = cgMatch ? cgMatch[1] : "";
+      const val = cgMatch ? cgMatch[2] : "";
+      if (num === "10") {
+        const value = val || "150";
+        category = `CG 10/${value}`;
         customFields["Meta Corridas"] = "10 corridas";
-        customFields["B\xF4nus"] = "R$ 100";
-      } else {
-        category = "CG05/50";
+        customFields["B\xF4nus"] = `R$ ${value}`;
+      } else if (num === "05" || num === "5") {
+        const value = val || "100";
+        category = `CG 05/${value}`;
         customFields["Meta Corridas"] = "5 corridas";
-        customFields["B\xF4nus"] = "R$ 50";
+        customFields["B\xF4nus"] = `R$ ${value}`;
+      } else {
+        category = "Corre e Ganhe";
+        customFields["Campanha"] = "Corre e Ganhe";
       }
       customFields["Campanha"] = "Corre e Ganhe";
       chipId = "chip_1";
       chipName = "WhatsApp Business";
       categoryDetails["type"] = "corre_e_ganhe";
-      cleanName = cleanName.replace(/[-_]?(CG\s*\d+|CORRE\s*E\s*GANHE)[-_]?(.*)$/i, "").trim();
+      cleanName = cleanName.replace(/[-_]?(CG\s*\d*[\/\-\_\$\s]*\d*|CORRE\s*E\s*GANHE)[-_]?(.*)$/i, "").trim();
     } else if (/CORR|CORRECAO|R\$\s*\d+/i.test(raw)) {
       const valMatch = raw.match(/R\$\s*(\d+)/i) || raw.match(/CORR(?:ECAO)?[_-]?(\d+)/i);
       const val = valMatch ? `R$ ${valMatch[1]}` : "R$ 50";
@@ -386,12 +394,13 @@ REGRAS DE CLASSIFICA\xC7\xC3O E EXTRA\xC7\xC3O DE NOVOS CAMPOS:
    - Chip recomendado: "chip_2" (WhatsApp Suporte).
 
 2. **Corre\xE7\xE3o / Outros Valores** (tags como CORR, CORRECAO, CORR_50, CORRECAO_30, R$ ..., etc.):
-   - Categoria: "Corre\xE7\xE3o: R$ XX" (exemplo: "Corre\xE7\xE3o: R$ 50", "Corre\xE7\xE3o: R$ 80", "Corre\xE7\xE3o de Valor").
+   - Categoria: Mapear para a categoria CG correspondente (ex: se for R$ 50, categorizar como "CG 50"; se for R$ 100, categorizar como "CG 100"; se for 10/150, "CG 10/150"; se houver padr\xE3o CG como CG 05/50, usar "CG 05/50").
    - Extrair campos din\xE2micos (customFields):
      - "Valor Corre\xE7\xE3o": valor identificado (ex: "R$ 50", "R$ 30", "R$ 80", "R$ 100", etc.)
      - "Tipo": "Ajuste / Cr\xE9dito em Conta"
      - "Motivo": "Corre\xE7\xE3o de Saldo"
-   - Chip recomendado: "chip_2" (WhatsApp Suporte).
+     - "Corre\xE7\xE3o": "Sim"
+   - Chip recomendado: "chip_1" (WhatsApp Business).
 
 3. **Corre e Ganhe** (tags como CG05, CG5, CG10, CG, CORRE E GANHE, etc.):
    - Se for CG05/CG5 com b\xF4nus de R$ 50: Categoria "CG05/50"
@@ -417,6 +426,15 @@ REGRAS DE CLASSIFICA\xC7\xC3O E EXTRA\xC7\xC3O DE NOVOS CAMPOS:
 
 7. **Detec\xE7\xE3o de G\xEAnero**:
    - "homem" ou "mulher" baseado no primeiro nome brasileiro.
+
+8. **Desconsiderar C\xF3digos de Lote/Turma/Sequ\xEAncia (T18, T19, T20, T01, T02, etc.)**:
+   - C\xF3digos no formato T18, T19, T20, T01, T02 s\xE3o apenas n\xFAmeros de sequ\xEAncia/lote e N\xC3O devem ser usados como nome de categoria nem criados como grupos.
+   - Remova esse prefixo/sufixo do nome limpo (ex: ".T18_Aline Alves" -> "Aline Alves").
+   - Se o contato n\xE3o possuir outra tag promocional (como CG ou TX0), a categoria DEVE SER "Agenda de Contatos".
+
+9. **CIDADES, NOMES PR\xD3PRIOS E 'IMPORTADOS' N\xC3O S\xC3O CATEGORIAS**:
+   - Nomes de cidades (Aparecida de Goi\xE2nia, Goi\xE2nia, Trindade, Guap\xF3, An\xE1polis, Senador Canedo, etc.), nomes de pessoas (Glauber, Fabricio, etc.) ou r\xF3tulos de importa\xE7\xE3o ("Importados", "VCF") NUNCA devem ser usados como categoria.
+   - Se o contato contiver apenas uma cidade ou nome de pessoa na tag, remova do nome limpo e atribua a categoria "Agenda de Contatos".
 
 Retorne EXCLUSIVAMENTE um JSON no seguinte formato:
 {
