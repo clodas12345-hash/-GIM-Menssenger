@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { DispatchLogItem, AppSettings, ScheduledCampaign, ProjectArchive, Contact } from '../types';
 import { formatPhoneDisplay, cleanChipName, matchContact, normalizeSearchText, matchPhoneNumber } from '../utils/whatsapp';
+import { downloadFileSafely } from '../utils/downloadHelper';
 
 interface HistoryViewProps {
   logs: DispatchLogItem[];
@@ -454,12 +455,7 @@ export const HistoryView: React.FC<HistoryViewProps> = React.memo(({
   const handleDownloadHourlyReport = () => {
     const text = generateHourlyReportText();
     const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `relatorio_hora_em_hora_06h_22h_${hourlyPeriod}.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadFileSafely(blob, `relatorio_hora_em_hora_06h_22h_${hourlyPeriod}.txt`);
     setCopiedNotice('📥 Relatório em texto (.txt) baixado com sucesso!');
     setTimeout(() => setCopiedNotice(null), 3500);
   };
@@ -576,14 +572,9 @@ export const HistoryView: React.FC<HistoryViewProps> = React.memo(({
       `"${l.messageText.replace(/"/g, '""')}"`,
     ]);
 
-    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `relatorio_disparos_${new Date().toISOString().slice(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+    const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csvContent], { type: 'text/csv;charset=utf-8' });
+    downloadFileSafely(blob, `relatorio_disparos_${new Date().toISOString().slice(0, 10)}.csv`);
   };
 
   const handleExportPdf = () => {
@@ -1219,14 +1210,9 @@ export const HistoryView: React.FC<HistoryViewProps> = React.memo(({
                                   `"${l.sentAt ? new Date(l.sentAt).toLocaleString('pt-BR') : '—'}"`,
                                   `"${l.messageText.replace(/"/g, '""')}"`,
                                 ]);
-                                const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
-                                const encodedUri = encodeURI(csvContent);
-                                const link = document.createElement('a');
-                                link.setAttribute('href', encodedUri);
-                                link.setAttribute('download', `projeto_${project.name.replace(/\s+/g, '_')}_logs.csv`);
-                                document.body.appendChild(link);
-                                link.click();
-                                document.body.removeChild(link);
+                                const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+                                const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csvContent], { type: 'text/csv;charset=utf-8' });
+                                downloadFileSafely(blob, `projeto_${project.name.replace(/\s+/g, '_')}_logs.csv`);
                               }}
                               className="bg-[#15181E] hover:bg-[#1F2229] text-gray-300 hover:text-white border border-[#1F2229] p-1.5 rounded text-xs transition-all cursor-pointer"
                               title="Baixar CSV do Projeto"
@@ -2526,14 +2512,9 @@ export const HistoryView: React.FC<HistoryViewProps> = React.memo(({
                     `"${l.sentAt ? new Date(l.sentAt).toLocaleString('pt-BR') : '—'}"`,
                     `"${l.messageText.replace(/"/g, '""')}"`,
                   ]);
-                  const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
-                  const encodedUri = encodeURI(csvContent);
-                  const link = document.createElement('a');
-                  link.setAttribute('href', encodedUri);
-                  link.setAttribute('download', `projeto_${selectedArchivedProject.name.replace(/\s+/g, '_')}_logs.csv`);
-                  document.body.appendChild(link);
-                  link.click();
-                  document.body.removeChild(link);
+                  const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+                  const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csvContent], { type: 'text/csv;charset=utf-8' });
+                  downloadFileSafely(blob, `projeto_${selectedArchivedProject.name.replace(/\s+/g, '_')}_logs.csv`);
                 }}
                 className="bg-[#A88B4B] hover:bg-[#C5A968] text-slate-950 font-extrabold text-xs uppercase px-4 py-2 rounded-lg transition-all flex items-center space-x-1.5 cursor-pointer"
               >

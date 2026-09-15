@@ -25,6 +25,7 @@ import { AppSettings, WhatsAppChip, DispatchLogItem, Contact, ScheduledCampaign,
 import { cleanChipName } from '../utils/whatsapp';
 import { safeConfirm } from '../utils/whatsapp';
 import { restoreFromBackup } from '../utils/storage';
+import { downloadFileSafely } from '../utils/downloadHelper';
 
 interface SettingsModalProps {
   logs?: DispatchLogItem[];
@@ -181,16 +182,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       };
 
       const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `backup_zapagendador_${new Date().toISOString().slice(0, 10)}.json`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      const filename = `backup_zapagendador_${new Date().toISOString().slice(0, 10)}.json`;
+      
+      downloadFileSafely(blob, filename);
 
-      setExportStatus('Backup exportado com sucesso! Arquivo JSON salvo.');
+      setExportStatus('Backup exportado com sucesso!');
       setTimeout(() => setExportStatus(null), 4000);
     } catch (err) {
       console.error('Erro ao exportar JSON:', err);

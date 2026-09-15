@@ -43,6 +43,7 @@ import { buildWhatsAppLink, openWhatsAppLink, replaceTemplateVariables, cleanChi
 import { cleanPhoneNumber } from './utils/vcfParser';
 import { checkSendingRules } from './utils/rules';
 import { processContactName, enrichContacts, isIgnoredSequenceTag, isInvalidCategoryName } from './utils/contactProcessor';
+import { downloadFileSafely } from './utils/downloadHelper';
 import { Send, X, Bell, CheckCircle2, AlertCircle, Shield } from 'lucide-react';
 
 import { Navbar } from './components/Navbar';
@@ -792,24 +793,13 @@ export default function App() {
         `"${l.sentAt ? new Date(l.sentAt).toLocaleString('pt-BR') : '—'}"`,
         `"${l.messageText.replace(/"/g, '""')}"`,
       ]);
-      const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
-      const encodedUri = encodeURI(csvContent);
-      const link = document.createElement('a');
-      link.setAttribute('href', encodedUri);
-      link.setAttribute('download', `backup_disparos_${new Date().toISOString().slice(0, 10)}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      const csvContent = [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+      const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csvContent], { type: 'text/csv;charset=utf-8' });
+      downloadFileSafely(blob, `backup_disparos_${new Date().toISOString().slice(0, 10)}.csv`);
     } else if (config.exportType === 'json') {
       const backupData = { logs, campaigns, contacts, groups, settings, exportDate: new Date().toISOString() };
       const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `backup_completo_gkdmessenger_${new Date().toISOString().slice(0, 10)}.json`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      downloadFileSafely(blob, `backup_completo_gkdmessenger_${new Date().toISOString().slice(0, 10)}.json`);
     }
 
     if (config.resetLogs) {

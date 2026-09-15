@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { Contact, DispatchLogItem, ScheduledCampaign, MessageTemplate, AppSettings, ContactGroup } from '../types';
 import { restoreFromBackup } from '../utils/storage';
+import { downloadFileSafely } from '../utils/downloadHelper';
 
 interface HelpModalProps {
   isOpen: boolean;
@@ -121,14 +122,8 @@ export const HelpModal: React.FC<HelpModalProps> = ({
       };
 
       const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `backup_total_messenger_${new Date().toISOString().slice(0, 10)}.json`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      const filename = `backup_total_messenger_${new Date().toISOString().slice(0, 10)}.json`;
+      downloadFileSafely(blob, filename);
 
       setDownloadSuccess('Backup 100% completo salvo com sucesso! (Contatos, histórico diário/mensal e configurações)');
       setTimeout(() => setDownloadSuccess(null), 4000);
@@ -171,14 +166,9 @@ export const HelpModal: React.FC<HelpModalProps> = ({
         });
       }
 
-      const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + [headers.join(';'), ...rows.map(e => e.join(';'))].join('\n');
-      const encodedUri = encodeURI(csvContent);
-      const link = document.createElement('a');
-      link.setAttribute('href', encodedUri);
-      link.setAttribute('download', `relatorio_geral_gkd_${new Date().toISOString().slice(0, 10)}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      const csvContent = [headers.join(';'), ...rows.map(e => e.join(';'))].join('\n');
+      const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csvContent], { type: 'text/csv;charset=utf-8' });
+      downloadFileSafely(blob, `relatorio_geral_gkd_${new Date().toISOString().slice(0, 10)}.csv`);
 
       setDownloadSuccess('Planilha CSV gerada e baixada com sucesso!');
       setTimeout(() => setDownloadSuccess(null), 4000);
