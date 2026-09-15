@@ -44,7 +44,7 @@ import { cleanPhoneNumber } from './utils/vcfParser';
 import { checkSendingRules } from './utils/rules';
 import { processContactName, enrichContacts, isIgnoredSequenceTag, isInvalidCategoryName } from './utils/contactProcessor';
 import { downloadFileSafely } from './utils/downloadHelper';
-import { Send, X, Bell, CheckCircle2, AlertCircle, Shield } from 'lucide-react';
+import { Send, X, Bell, CheckCircle2, AlertCircle, Shield, Printer } from 'lucide-react';
 
 import { Navbar } from './components/Navbar';
 import { DashboardView } from './components/DashboardView';
@@ -91,6 +91,7 @@ export default function App() {
   const [isLogoInfoModalOpen, setIsLogoInfoModalOpen] = useState<boolean>(false);
   const [isSaveAndResetOpen, setIsSaveAndResetOpen] = useState<boolean>(false);
   const [isPermissionsModalOpen, setIsPermissionsModalOpen] = useState<boolean>(false);
+  const [reportPreviewHtml, setReportPreviewHtml] = useState<string | null>(null);
 
   // Auto-lock persistent storage memory on startup
   useEffect(() => {
@@ -720,69 +721,60 @@ export default function App() {
     }
 
     if (config.exportType === 'pdf') {
-      const printWindow = window.open('', '_blank');
-      if (printWindow) {
-        const htmlContent = `
-          <!DOCTYPE html>
-          <html lang="pt-BR">
-          <head>
-            <meta charset="UTF-8">
-            <title>${config.archiveName} - Relatório PDF</title>
-            <style>
-              body { font-family: Arial, sans-serif; color: #111; margin: 20px; font-size: 12px; }
-              h1 { font-size: 20px; color: #A88B4B; border-bottom: 2px solid #A88B4B; padding-bottom: 8px; margin-bottom: 15px; }
-              h2 { font-size: 14px; color: #333; margin-top: 20px; border-bottom: 1px solid #ccc; padding-bottom: 5px; }
-              table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-              th, td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; }
-              th { background-color: #f4f4f4; color: #333; font-weight: bold; }
-              tr:nth-child(even) { background-color: #fafafa; }
-              .meta { margin-bottom: 15px; color: #555; }
-            </style>
-          </head>
-          <body>
-            <h1>Relatório Oficial: ${config.archiveName}</h1>
-            <div class="meta">
-              <p><strong>Data de Geração:</strong> ${new Date().toLocaleString('pt-BR')}</p>
-              <p><strong>Total de Registros de Disparos:</strong> ${logs.length}</p>
-              <p><strong>Campanhas Cadastradas:</strong> ${campaigns.length} | <strong>Contatos:</strong> ${contacts.length}</p>
-            </div>
+      const htmlContent = `
+        <!DOCTYPE html>
+        <html lang="pt-BR">
+        <head>
+          <meta charset="UTF-8">
+          <title>${config.archiveName} - Relatório PDF</title>
+          <style>
+            body { font-family: Arial, sans-serif; color: #111; margin: 20px; font-size: 12px; }
+            h1 { font-size: 20px; color: #A88B4B; border-bottom: 2px solid #A88B4B; padding-bottom: 8px; margin-bottom: 15px; }
+            h2 { font-size: 14px; color: #333; margin-top: 20px; border-bottom: 1px solid #ccc; padding-bottom: 5px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+            th, td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; }
+            th { background-color: #f4f4f4; color: #333; font-weight: bold; }
+            tr:nth-child(even) { background-color: #fafafa; }
+            .meta { margin-bottom: 15px; color: #555; }
+          </style>
+        </head>
+        <body>
+          <h1>Relatório Oficial: ${config.archiveName}</h1>
+          <div class="meta">
+            <p><strong>Data de Geração:</strong> ${new Date().toLocaleString('pt-BR')}</p>
+            <p><strong>Total de Registros de Disparos:</strong> ${logs.length}</p>
+            <p><strong>Campanhas Cadastradas:</strong> ${campaigns.length} | <strong>Contatos:</strong> ${contacts.length}</p>
+          </div>
 
-            <h2>Histórico de Disparos</h2>
-            <table>
-              <thead>
+          <h2>Histórico de Disparos</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Campanha</th>
+                <th>Contato</th>
+                <th>Telefone</th>
+                <th>Status</th>
+                <th>Data Envio</th>
+                <th>Mensagem</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${logs.map(l => `
                 <tr>
-                  <th>Campanha</th>
-                  <th>Contato</th>
-                  <th>Telefone</th>
-                  <th>Status</th>
-                  <th>Data Envio</th>
-                  <th>Mensagem</th>
+                  <td>${l.campaignTitle}</td>
+                  <td>${l.contactName}</td>
+                  <td>${l.phone}</td>
+                  <td><strong>${l.status}</strong></td>
+                  <td>${l.sentAt ? new Date(l.sentAt).toLocaleString('pt-BR') : '—'}</td>
+                  <td>${l.messageText}</td>
                 </tr>
-              </thead>
-              <tbody>
-                ${logs.map(l => `
-                  <tr>
-                    <td>${l.campaignTitle}</td>
-                    <td>${l.contactName}</td>
-                    <td>${l.phone}</td>
-                    <td><strong>${l.status}</strong></td>
-                    <td>${l.sentAt ? new Date(l.sentAt).toLocaleString('pt-BR') : '—'}</td>
-                    <td>${l.messageText}</td>
-                  </tr>
-                `).join('')}
-              </tbody>
-            </table>
-            <script>
-              window.onload = function() {
-                window.print();
-              };
-            </script>
-          </body>
-          </html>
-        `;
-        printWindow.document.write(htmlContent);
-        printWindow.document.close();
-      }
+              `).join('')}
+            </tbody>
+          </table>
+        </body>
+        </html>
+      `;
+      setReportPreviewHtml(htmlContent);
     } else if (config.exportType === 'csv' && logs.length > 0) {
       const headers = ['Campanha', 'Contato', 'Telefone', 'Status', 'Data Envio', 'Mensagem'];
       const rows = logs.map((l) => [
@@ -1325,6 +1317,12 @@ export default function App() {
     autoOpenedCampaignsRef.current.delete(id);
     if (dueCampaignAlert?.id === id) setDueCampaignAlert(null);
     if (activeDispatcherCampaign?.id === id) setActiveDispatcherCampaign(null);
+    
+    const campaignToDelete = campaigns.find(c => c.id === id);
+    if (campaignToDelete && campaignToDelete.templateId) {
+      handleDeleteTemplate(campaignToDelete.templateId);
+    }
+
     setCampaigns((prev) => {
       const updated = sortCampaignsBySchedule(prev.filter((c) => c.id !== id));
       saveCampaigns(updated);
@@ -2115,6 +2113,45 @@ export default function App() {
           <div className="bg-[#A88B4B] text-black px-6 py-3 rounded-full shadow-2xl shadow-[#A88B4B]/20 border border-[#A88B4B]/50 font-bold text-sm flex items-center space-x-2">
             <CheckCircle2 className="w-5 h-5" />
             <span>{toastMessage}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Report Preview Modal */}
+      {reportPreviewHtml && (
+        <div className="fixed inset-0 z-[100] flex flex-col bg-gray-100 h-[100dvh] w-[100vw]">
+          <div className="flex-none flex items-center justify-between p-3 md:p-4 bg-gray-900 shadow-lg text-white">
+            <h2 className="text-base md:text-lg font-semibold text-gray-100">Visualização do Relatório</h2>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  const iframe = document.getElementById('report-preview-iframe') as HTMLIFrameElement;
+                  if (iframe && iframe.contentWindow) {
+                    iframe.contentWindow.print();
+                  }
+                }}
+                className="flex items-center justify-center gap-2 px-3 py-2 bg-[#A88B4B] hover:bg-[#92783E] text-white rounded-lg text-sm transition-colors"
+              >
+                <Printer size={16} />
+                <span className="hidden sm:inline">Baixar / Imprimir PDF</span>
+                <span className="sm:hidden">PDF</span>
+              </button>
+              <button
+                onClick={() => setReportPreviewHtml(null)}
+                className="flex items-center justify-center gap-2 px-3 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-lg border border-gray-700 text-sm transition-colors"
+              >
+                <X size={16} />
+                <span className="hidden sm:inline">Fechar</span>
+              </button>
+            </div>
+          </div>
+          <div className="flex-1 w-full relative bg-white overflow-hidden">
+            <iframe 
+              id="report-preview-iframe"
+              srcDoc={reportPreviewHtml} 
+              className="absolute inset-0 w-full h-full border-none"
+              sandbox="allow-same-origin allow-scripts allow-modals"
+            />
           </div>
         </div>
       )}
