@@ -825,13 +825,15 @@ export const TemplatesView: React.FC<TemplatesViewProps> = React.memo(({
       const titleStr = (t.title || '').toLowerCase();
       const contentStr = (t.content || '').toLowerCase();
       const catStr = (t.category || '').toLowerCase();
+      const variationsStr = (t.variations || []).join(' ').toLowerCase();
       const search = (searchTerm || '').trim().toLowerCase();
 
       const matchesSearch =
         !search ||
         titleStr.includes(search) ||
         contentStr.includes(search) ||
-        catStr.includes(search);
+        catStr.includes(search) ||
+        variationsStr.includes(search);
 
       const matchesTopic =
         !activeTopic || catStr === activeTopic.trim().toLowerCase();

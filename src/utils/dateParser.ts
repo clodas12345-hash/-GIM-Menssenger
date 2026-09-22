@@ -51,19 +51,19 @@ export function getTodayDateLocal(): string {
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }
 
-export const MIN_SCHEDULE_HOUR = 8; // 08:00 AM
-export const MAX_SCHEDULE_HOUR = 20; // 20:59 (8 PM)
+export const MIN_SCHEDULE_HOUR = 9; // 09:00 AM
+export const MAX_SCHEDULE_HOUR = 19; // 19:59 (7 PM)
 
 export function isWithinBusinessHours(date: Date): boolean {
   if (isNaN(date.getTime())) return false;
   const h = date.getHours();
-  return h >= 8 && h <= 20;
+  return h >= 9 && h <= 19;
 }
 
 export function clampScheduleTimeString(timeStr: string): string {
-  if (!timeStr) return '08:00';
+  if (!timeStr) return '09:00';
   const parts = timeStr.split(':');
-  let hh = parseInt(parts[0] || '8', 10);
+  let hh = parseInt(parts[0] || '9', 10);
   let mm = parseInt(parts[1] || '0', 10);
 
   if (isNaN(hh) || hh < MIN_SCHEDULE_HOUR || hh > MAX_SCHEDULE_HOUR) hh = isNaN(hh) ? MIN_SCHEDULE_HOUR : Math.max(MIN_SCHEDULE_HOUR, Math.min(MAX_SCHEDULE_HOUR, hh));
@@ -80,13 +80,13 @@ export function clampDateToBusinessHours(date: Date): Date {
 
 export function advanceNextBusinessSlot(currentDate: Date, hourStep: number = 1): Date {
   const d = new Date(currentDate.getTime() + hourStep * 60 * 60 * 1000);
-  // If hour falls in night time (21h to 06h), advance to 06:00 next day
+  // If hour falls in night time (20h to 08h), advance to 09:00 next day
   const h = d.getHours();
-  if (h >= 21 || h < 8) {
-    if (h >= 21) {
+  if (h >= 20 || h < 9) {
+    if (h >= 20) {
       d.setDate(d.getDate() + 1);
     }
-    d.setHours(8, 0, 0, 0);
+    d.setHours(9, 0, 0, 0);
   }
   return d;
 }

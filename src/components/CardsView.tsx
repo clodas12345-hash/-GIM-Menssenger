@@ -371,9 +371,10 @@ export const CardsView: React.FC<CardsViewProps> = React.memo(({ onNavigate }) =
 
   // Filtered cards according to search, category pill, and duplicate filter
   const filteredCards = cards.filter((card) => {
-    const matchesCat = activeCategoryFilter === 'Todos' || card.category === activeCategoryFilter;
+    const cardCat = card.category || 'Geral';
+    const matchesCat = activeCategoryFilter === 'Todos' || cardCat === activeCategoryFilter;
     const term = searchTerm.toLowerCase();
-    const matchesSearch = !term || card.title.toLowerCase().includes(term) || card.category.toLowerCase().includes(term);
+    const matchesSearch = !term || card.title.toLowerCase().includes(term) || cardCat.toLowerCase().includes(term);
     const matchesDuplicates = !onlyDuplicatesFilter || getDuplicateInfo(card).isDuplicate;
     return matchesCat && matchesSearch && matchesDuplicates;
   });
@@ -606,7 +607,7 @@ export const CardsView: React.FC<CardsViewProps> = React.memo(({ onNavigate }) =
 
         <div className="flex flex-wrap gap-2">
           {categoriesList.map((cat) => {
-            const count = cat === 'Todos' ? cards.length : cards.filter((c) => c.category === cat).length;
+            const count = cat === 'Todos' ? cards.length : cards.filter((c) => (c.category || 'Geral') === cat).length;
             const isActive = activeCategoryFilter === cat;
 
             return (

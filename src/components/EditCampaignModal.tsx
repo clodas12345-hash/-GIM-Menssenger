@@ -669,7 +669,7 @@ export const EditCampaignModal: React.FC<EditCampaignModalProps> = ({
                             value={(partScheduleMap[part.id] || toDatetimeLocal(part.scheduledAt)).split('T')[0] || ''}
                             onChange={(e) => {
                               const currentVal = partScheduleMap[part.id] || toDatetimeLocal(part.scheduledAt);
-                              const timeVal = currentVal.split('T')[1] || '08:00';
+                              const timeVal = currentVal.split('T')[1] || '09:00';
                               const val = `${e.target.value}T${timeVal}`;
                               setPartScheduleMap((prev) => ({ ...prev, [part.id]: val }));
                               if (isCurrent) setScheduledAtLocal(val);
@@ -677,7 +677,7 @@ export const EditCampaignModal: React.FC<EditCampaignModalProps> = ({
                             className="w-full sm:w-3/5 bg-[#0A0C10] border border-[#1F2229] rounded px-1.5 py-1 text-white text-[11px] font-mono focus:outline-none focus:border-[#A88B4B]"
                           />
                           <TimeSelect
-                            value={(partScheduleMap[part.id] || toDatetimeLocal(part.scheduledAt)).split('T')[1] || '08:00'}
+                            value={(partScheduleMap[part.id] || toDatetimeLocal(part.scheduledAt)).split('T')[1] || '09:00'}
                             onChange={(timeVal) => {
                               const currentVal = partScheduleMap[part.id] || toDatetimeLocal(part.scheduledAt);
                               const dateVal = currentVal.split('T')[0] || getTodayDateLocal();
@@ -726,7 +726,7 @@ export const EditCampaignModal: React.FC<EditCampaignModalProps> = ({
                   min={getTodayDateLocal()}
                   value={scheduledAtLocal.split('T')[0] || ''}
                   onChange={(e) => {
-                    const timeVal = scheduledAtLocal.split('T')[1] || '08:00';
+                    const timeVal = scheduledAtLocal.split('T')[1] || '09:00';
                     const val = `${e.target.value}T${timeVal}`;
                     setScheduledAtLocal(val);
                     setPartScheduleMap((prev) => ({ ...prev, [campaign.id]: val }));
@@ -741,7 +741,7 @@ export const EditCampaignModal: React.FC<EditCampaignModalProps> = ({
                   required
                 />
                 <TimeSelect
-                  value={scheduledAtLocal.split('T')[1] || '08:00'}
+                  value={scheduledAtLocal.split('T')[1] || '09:00'}
                   onChange={(timeVal) => {
                     const dateVal = scheduledAtLocal.split('T')[0] || getTodayDateLocal();
                     const val = `${dateVal}T${timeVal}`;

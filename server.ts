@@ -115,6 +115,56 @@ function generateFallbackTopicTemplates(
       content: `Oi, {primeiro_nome}! {saudacao}! ${intro}Espero que esteja tudo bem. Queria te passar este comunicado: ${cleanBody || cleanHook} Conte com nosso suporte sempre!`,
       category: cleanTopic,
     },
+    {
+      title: `${cleanTopic} - Opção 6 (Entusiasta)`,
+      content: `Ei, {primeiro_nome}! {saudacao}! ${intro}Tenho uma novidade imperdível: ${cleanBody || cleanHook} Estamos ansiosos pelo seu contato!`,
+      category: cleanTopic,
+    },
+    {
+      title: `${cleanTopic} - Opção 7 (Profissional)`,
+      content: `Prezado(a) {primeiro_nome}, {saudacao}. ${intro}Este é um comunicado importante sobre: ${cleanBody || cleanHook} À disposição para esclarecimentos.`,
+      category: cleanTopic,
+    },
+    {
+      title: `${cleanTopic} - Opção 8 (Curta e Direta)`,
+      content: `Olá, {primeiro_nome}. ${intro}${cleanBody || cleanHook} Qualquer coisa, é só dar um alô!`,
+      category: cleanTopic,
+    },
+    {
+      title: `${cleanTopic} - Opção 9 (Informativa)`,
+      content: `{saudacao}! {primeiro_nome}, ${intro}aproveito o momento para informar: ${cleanBody || cleanHook} Se preferir, agendamos um horário!`,
+      category: cleanTopic,
+    },
+    {
+      title: `${cleanTopic} - Opção 10 (Foco em Benefício)`,
+      content: `Ei, {primeiro_nome}! {saudacao}! ${intro}Você não pode perder esta oportunidade: ${cleanBody || cleanHook} Vamos conversar?`,
+      category: cleanTopic,
+    },
+    {
+      title: `${cleanTopic} - Opção 11 (Urgente)`,
+      content: `Atenção, {primeiro_nome}! {saudacao}! ${intro}Preciso te atualizar sobre: ${cleanBody || cleanHook} Aguardo seu retorno!`,
+      category: cleanTopic,
+    },
+    {
+      title: `${cleanTopic} - Opção 12 (Personalizada)`,
+      content: `Como vai, {primeiro_nome}? {saudacao}! ${intro}Queria destacar isso para você: ${cleanBody || cleanHook} Fico no aguardo de notícias.`,
+      category: cleanTopic,
+    },
+    {
+      title: `${cleanTopic} - Opção 13 (Amigável)`,
+      content: `Oi, {primeiro_nome}! ${intro}Tudo certo por aqui, queria só te lembrar: ${cleanBody || cleanHook} Abraços!`,
+      category: cleanTopic,
+    },
+    {
+      title: `${cleanTopic} - Opção 14 (Exclusiva)`,
+      content: `Olá, {primeiro_nome}! {saudacao}! ${intro}Preparamos isso especialmente para você: ${cleanBody || cleanHook} Que tal aproveitar?`,
+      category: cleanTopic,
+    },
+    {
+      title: `${cleanTopic} - Opção 15 (Conexão)`,
+      content: `Ei, {primeiro_nome}! {saudacao}! ${intro}Notei esse ponto importante: ${cleanBody || cleanHook} Seguimos juntos!`,
+      category: cleanTopic,
+    },
   ];
 
   return pool.slice(0, Math.max(1, Math.min(quantity, pool.length)));
@@ -368,7 +418,7 @@ app.post("/api/ai/generate-topic-templates", async (req, res) => {
   const { topicName, hook, presentation, quantity = 5 } = req.body;
   try {
     const prompt = `Você é um consultor e redator profissional de comunicação estratégica para WhatsApp.
-O usuário informou o tópico da campanha e uma mensagem/frase de impacto. Sua tarefa é gerar ${quantity} opções de mensagens prontas para envio.
+O usuário informou o tópico da campanha e uma mensagem/frase de impacto. Sua tarefa é gerar EXATAMENTE ${quantity} opções de mensagens prontas para envio.
 
 CONTEXTO:
 - Tópico / Campanha: "${topicName}"
@@ -376,8 +426,8 @@ CONTEXTO:
 - Apresentação do Remetente: "${presentation || 'Não informada'}"
 
 DIRETRIZES RIGOROSAS:
-1. OPÇÃO 1 (Mensagem 1): DEVE SER RIGOROSAMENTE A MENSAGEM ORIGINAL DO USUÁRIO, preservando 100% das suas palavras e sentido, apenas adicionando a saudação inicial ({saudacao}, {primeiro_nome}!) e a apresentação se informada.
-2. OPÇÕES SEGUINTES (Opção 2 até Opção ${quantity}): DEVEM SER VARIAÇÕES REAIS DE COPYWRITING DA MENSAGEM DO USUÁRIO!
+1. GERE EXATAMENTE ${quantity} OPÇÕES DE MENSAGENS!
+2. GERE TODAS AS OPÇÕES COMO VARIAÇÕES REAIS DE COPYWRITING DA MENSAGEM DO USUÁRIO!
    - REESCREVA a estrutura com vocabulário diferente, aberturas variadas e ordem de frases alternada (para proteção anti-spam).
    - Mantenha 100% a fidelidade aos fatos, valores e termos que o usuário escreveu (NÃO invente promoções ou valores não mencionados).
    - Use variáveis adequadas: {saudacao} e {primeiro_nome}.
@@ -387,15 +437,11 @@ Responda EXCLUSIVAMENTE no formato JSON:
 {
   "templates": [
     {
-      "title": "${topicName} - Mensagem 1 (Original)",
+      "title": "${topicName} - Opção 1",
       "content": "...",
       "category": "${topicName}"
     },
-    {
-      "title": "${topicName} - Opção 2 (Direta)",
-      "content": "...",
-      "category": "${topicName}"
-    }
+    ... (devem ter exatamente ${quantity} itens aqui)
   ]
 }`;
 

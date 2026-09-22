@@ -56,6 +56,7 @@ import { AiTemplateModal } from './components/AiTemplateModal';
 import { DispatcherModal } from './components/DispatcherModal';
 import { HistoryView } from './components/HistoryView';
 import { SettingsModal } from './components/SettingsModal';
+import { WelcomeTutorialModal } from './components/WelcomeTutorialModal';
 import { ConfirmSentModal } from './components/ConfirmSentModal';
 import { CardsView } from './components/CardsView';
 import { HelpModal } from './components/HelpModal';
@@ -63,7 +64,6 @@ import { PermissionsModal } from './components/PermissionsModal';
 import { RuleViolationModal } from './components/RuleViolationModal';
 import { EditCampaignModal } from './components/EditCampaignModal';
 import { ApkExportModal } from './components/ApkExportModal';
-import { Limit50PopupModal } from './components/Limit50PopupModal';
 import { AnalyticsView } from './components/AnalyticsView';
 import { LogoInfoModal } from './components/LogoInfoModal';
 import { SaveAndResetModal } from './components/SaveAndResetModal';
@@ -71,23 +71,6 @@ import { TopicGeneratorModal } from './components/TopicGeneratorModal';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<string>('dashboard');
-  const [isLimit50ModalOpen, setIsLimit50ModalOpen] = useState<boolean>(false);
-  const [hasDismissedLimit50Modal, setHasDismissedLimit50Modal] = useState<boolean>(() => {
-    try {
-      const lastDismissed = localStorage.getItem('lastLimitAlertDismissedAt');
-      if (lastDismissed) {
-        const timestamp = parseInt(lastDismissed, 10);
-        const now = Date.now();
-        // Skip alert for 4 hours after dismissal
-        if (now - timestamp < 4 * 60 * 60 * 1000) {
-          return true;
-        }
-      }
-    } catch (e) {
-      console.error('Error reading limit alert dismissal', e);
-    }
-    return false;
-  });
   const [isLogoInfoModalOpen, setIsLogoInfoModalOpen] = useState<boolean>(false);
   const [isSaveAndResetOpen, setIsSaveAndResetOpen] = useState<boolean>(false);
   const [isPermissionsModalOpen, setIsPermissionsModalOpen] = useState<boolean>(false);
@@ -144,6 +127,7 @@ export default function App() {
   const [isAiModalOpen, setIsAiModalOpen] = useState<boolean>(false);
   const [isTopicGeneratorOpen, setIsTopicGeneratorOpen] = useState<boolean>(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState<boolean>(false);
+  const [isTutorialModalOpen, setIsTutorialModalOpen] = useState<boolean>(false);
   const [isHelpModalOpen, setIsHelpModalOpen] = useState<boolean>(false);
   const [isApkExportModalOpen, setIsApkExportModalOpen] = useState<boolean>(false);
   const [activeDispatcherCampaign, setActiveDispatcherCampaign] = useState<ScheduledCampaign | null>(null);
@@ -172,18 +156,31 @@ export default function App() {
     isBlocking: true,
   });
 
+  // Check if first time user to show tutorial/preface and prompt for name
+  useEffect(() => {
+    try {
+      const hasSeen = localStorage.getItem('gkd_has_seen_tutorial_v1');
+      const hasConfiguredName = localStorage.getItem('gkd_user_name_configured');
+      if (!hasSeen || !hasConfiguredName) {
+        setIsTutorialModalOpen(true);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
   // Lock body scroll when any modal is open
   useEffect(() => {
     const isAnyModalOpen = 
       isAiModalOpen || 
       isTopicGeneratorOpen ||
       isSettingsModalOpen || 
+      isTutorialModalOpen ||
       isHelpModalOpen || 
       isApkExportModalOpen || 
       isPermissionsModalOpen || 
       isLogoInfoModalOpen || 
       isSaveAndResetOpen || 
-      isLimit50ModalOpen || 
       !!activeDispatcherCampaign || 
       !!editingCampaign || 
       !!pendingConfirmContact || 
@@ -200,9 +197,9 @@ export default function App() {
       document.body.style.overflow = '';
     };
   }, [
-    isAiModalOpen, isTopicGeneratorOpen, isSettingsModalOpen, isHelpModalOpen, isApkExportModalOpen, 
+    isAiModalOpen, isTopicGeneratorOpen, isSettingsModalOpen, isTutorialModalOpen, isHelpModalOpen, isApkExportModalOpen, 
     isPermissionsModalOpen, isLogoInfoModalOpen, isSaveAndResetOpen, 
-    isLimit50ModalOpen, activeDispatcherCampaign, editingCampaign, 
+    activeDispatcherCampaign, editingCampaign, 
     pendingConfirmContact, dueCampaignAlert, ruleViolationModal.isOpen
   ]);
 
@@ -525,10 +522,6 @@ export default function App() {
         setIsSaveAndResetOpen(false);
         return;
       }
-      if (isLimit50ModalOpen) {
-        setIsLimit50ModalOpen(false);
-        return;
-      }
       if (activeDispatcherCampaign) {
         setActiveDispatcherCampaign(null);
         return;
@@ -579,7 +572,6 @@ export default function App() {
     isPermissionsModalOpen,
     isLogoInfoModalOpen,
     isSaveAndResetOpen,
-    isLimit50ModalOpen,
     activeDispatcherCampaign,
     editingCampaign,
     pendingConfirmContact,
@@ -1319,8 +1311,16 @@ export default function App() {
     if (activeDispatcherCampaign?.id === id) setActiveDispatcherCampaign(null);
     
     const campaignToDelete = campaigns.find(c => c.id === id);
-    if (campaignToDelete && campaignToDelete.templateId) {
-      handleDeleteTemplate(campaignToDelete.templateId);
+    if (campaignToDelete) {
+      if (campaignToDelete.templateId && campaignToDelete.templateId.startsWith('topic_cat_') && campaignToDelete.categoryName) {
+        const catName = campaignToDelete.categoryName;
+        const templatesToDelete = templates.filter(t => t.category === catName).map(t => t.id);
+        if (templatesToDelete.length > 0) {
+          handleDeleteMultipleTemplates(templatesToDelete);
+        }
+      } else if (campaignToDelete.templateId) {
+        handleDeleteTemplate(campaignToDelete.templateId);
+      }
     }
 
     setCampaigns((prev) => {
@@ -1731,14 +1731,6 @@ export default function App() {
     return limitAlerts;
   }, [logs, settings.maxMessagesPer24Hours, settings.chips]);
 
-  useEffect(() => {
-    // Only show if there are alerts AND we haven't dismissed recently
-    // Also check if the counts have actually changed to avoid showing it randomly
-    if (chipsNearOrAtLimit.length > 0 && !hasDismissedLimit50Modal && isAppReady) {
-      setIsLimit50ModalOpen(true);
-    }
-  }, [chipsNearOrAtLimit.length, hasDismissedLimit50Modal, isAppReady]);
-
   return (
     <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-[#0A0C10] text-slate-100 flex flex-col font-sans antialiased selection:bg-emerald-500 selection:text-slate-950">
       {/* Due Campaign Top Alert Banner */}
@@ -1995,6 +1987,8 @@ export default function App() {
         onSaveSettings={updateSettingsState}
         onOpenSaveAndReset={() => setIsSaveAndResetOpen(true)}
         onOpenPermissions={() => setIsPermissionsModalOpen(true)}
+        onShowTutorial={() => setIsTutorialModalOpen(true)}
+        onOpenHelp={() => setIsHelpModalOpen(true)}
         logs={logs}
         contacts={contacts}
         campaigns={campaigns}
@@ -2010,6 +2004,13 @@ export default function App() {
         onReportBlocked24h={handleReportWhatsAppBlocked}
         onUnblockWhatsApp={handleUnblockWhatsApp}
         onResetChipLogs={handleResetChipLogs}
+      />
+
+      <WelcomeTutorialModal
+        isOpen={isTutorialModalOpen}
+        onClose={() => setIsTutorialModalOpen(false)}
+        mentorName={settings.mentorName}
+        onSaveMentorName={(name) => updateSettingsState({ ...settings, mentorName: name })}
       />
 
       <PermissionsModal
@@ -2050,25 +2051,6 @@ export default function App() {
         onAdvanceCampaign={handleAdvanceCampaign}
       />
 
-      {/* Limit 50 Msgs / 24h Safety Warning Popup Modal */}
-      <Limit50PopupModal
-        isOpen={isLimit50ModalOpen}
-        onClose={() => {
-          setIsLimit50ModalOpen(false);
-          setHasDismissedLimit50Modal(true);
-          localStorage.setItem('lastLimitAlertDismissedAt', Date.now().toString());
-        }}
-        logs={logs}
-        settings={settings}
-        onOpenSettings={() => {
-          setIsLimit50ModalOpen(false);
-          setIsSettingsModalOpen(true);
-        }}
-        onOpenHistory={() => {
-          setIsLimit50ModalOpen(false);
-          navigateToTab('history');
-        }}
-      />
 
 
 

@@ -177,7 +177,7 @@ export const DailyLimitWidget: React.FC<DailyLimitWidgetProps> = ({
                 title="Sinalizar que seu WhatsApp foi bloqueado para pausar envios por 24h"
               >
                 <Lock className="w-3.5 h-3.5 text-red-400" />
-                <span>Fui Bloqueado (Pausar 24h)</span>
+                <span>Já enviei</span>
               </button>
             )}
 

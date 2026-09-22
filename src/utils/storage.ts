@@ -1364,19 +1364,30 @@ export function saveGroups(groups: ContactGroup[]): void {
 }
 
 export function getSettings(): AppSettings {
-  if (settingsCache) return settingsCache;
+  if (settingsCache) {
+    settingsCache.defaultCountryCode = '55';
+    settingsCache.sendMode = 'whatsapp_desktop';
+    return settingsCache;
+  }
 
   const loaded = loadFromStorage<AppSettings>(STORAGE_KEYS.SETTINGS, DEFAULT_SETTINGS);
   settingsCache = {
     ...DEFAULT_SETTINGS,
     ...loaded,
+    defaultCountryCode: '55',
+    sendMode: 'whatsapp_desktop',
   };
   return settingsCache;
 }
 
 export function saveSettings(settings: AppSettings): void {
-  settingsCache = settings;
-  saveToStorage(STORAGE_KEYS.SETTINGS, settings);
+  const normalized = {
+    ...settings,
+    defaultCountryCode: '55',
+    sendMode: 'whatsapp_desktop' as const,
+  };
+  settingsCache = normalized;
+  saveToStorage(STORAGE_KEYS.SETTINGS, normalized);
 }
 
 export function getTodayDateString(d: Date = new Date()): string {

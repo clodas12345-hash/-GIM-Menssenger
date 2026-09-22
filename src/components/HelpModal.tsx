@@ -456,7 +456,7 @@ export const HelpModal: React.FC<HelpModalProps> = ({
               O GKD Messenger possui um sistema robusto de conformidade com as diretrizes do WhatsApp para proteger seus números e chips contra bloqueios:
             </p>
             <ul className="space-y-2 pl-4 list-disc text-gray-300">
-              <li><strong className="text-white">Horário Restrito (20h às 08h):</strong> Mensagens não podem ser disparadas automaticamente neste período noturno para evitar incômodo e denúncias.</li>
+              <li><strong className="text-white">Horário Restrito (20h às 09h):</strong> Mensagens não podem ser disparadas automaticamente neste período noturno para evitar incômodo e denúncias.</li>
               <li><strong className="text-white">Atenção aos Domingos:</strong> Alerta de confirmação obrigatória antes de realizar disparos aos domingos.</li>
               <li><strong className="text-white">Limite Diário por Chip:</strong> Proteção de até 50 a 60 mensagens por dia por chip com alerta visual detalhado quando o limite estiver próximo.</li>
               <li><strong className="text-white">Dupla Mensagem no Mesmo Dia:</strong> O sistema avisa e protege se você tentar enviar mais de uma mensagem para o mesmo contato no mesmo dia.</li>

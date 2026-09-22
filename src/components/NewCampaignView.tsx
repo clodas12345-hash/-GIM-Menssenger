@@ -1771,14 +1771,14 @@ ${remainingCount > 0 ? `⚠️ ${remainingCount} contato(s) ficaram de fora para
                             value={sch.datetime.split('T')[0] || ''}
                             onChange={(e) => {
                               const newSchedules = [...schedules];
-                              const timeVal = newSchedules[index].datetime.split('T')[1] || '08:00';
+                              const timeVal = newSchedules[index].datetime.split('T')[1] || '09:00';
                               newSchedules[index].datetime = `${e.target.value}T${timeVal}`;
                               setSchedules(newSchedules);
                             }}
                             className="w-full sm:w-3/5 bg-[#15181E] border border-[#1F2229] rounded p-2 text-gray-300 text-sm focus:outline-none focus:border-[#A88B4B] font-mono"
                           />
                           <TimeSelect
-                            value={sch.datetime.split('T')[1] || '08:00'}
+                            value={sch.datetime.split('T')[1] || '09:00'}
                             onChange={(timeVal) => {
                               const newSchedules = [...schedules];
                               const dateVal = newSchedules[index].datetime.split('T')[0] || getTodayDateLocal();

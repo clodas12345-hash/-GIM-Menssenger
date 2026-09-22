@@ -57,15 +57,7 @@ export const TopicGeneratorModal: React.FC<TopicGeneratorModalProps> = ({
         throw new Error(data.error || 'Erro ao comunicar com a IA');
       }
       if (data.templates && Array.isArray(data.templates) && data.templates.length > 0) {
-        // Garantir que a primeira opção seja rigorosamente a Mensagem Original fiel
         const adjustedTemplates = data.templates.map((t: any, i: number) => {
-          if (i === 0) {
-            return {
-              title: `${cleanTopic} - Mensagem 1 (Original)`,
-              content: originalContent,
-              category: cleanTopic,
-            };
-          }
           return {
             ...t,
             title: t.title || `${cleanTopic} - Opção ${i + 1}`,
@@ -87,27 +79,22 @@ export const TopicGeneratorModal: React.FC<TopicGeneratorModalProps> = ({
 
       const localFallback = [
         {
-          title: `${cleanTopic} - Mensagem 1 (Original)`,
-          content: originalContent,
-          category: cleanTopic,
-        },
-        {
-          title: `${cleanTopic} - Opção 2 (Direta e Objetiva)`,
+          title: `${cleanTopic} - Opção 1 (Direta e Objetiva)`,
           content: `Olá, {primeiro_nome}! {saudacao}! ${intro}Passando para te avisar: ${cleanBody} Se precisar de qualquer ajuda, conte comigo!`,
           category: cleanTopic,
         },
         {
-          title: `${cleanTopic} - Opção 3 (Cordial e Preventiva)`,
+          title: `${cleanTopic} - Opção 2 (Cordial e Preventiva)`,
           content: `{saudacao}, {primeiro_nome}! Tudo bem? ${intro}Gostaria de compartilhar uma informação importante: ${cleanBody} Estamos 100% à disposição por aqui!`,
           category: cleanTopic,
         },
         {
-          title: `${cleanTopic} - Opção 4 (Ágil e Prática)`,
+          title: `${cleanTopic} - Opção 3 (Ágil e Prática)`,
           content: `{primeiro_nome}, {saudacao}! ${intro}Lembrete rápido para você: ${cleanBody} Qualquer dúvida é só me chamar!`,
           category: cleanTopic,
         },
         {
-          title: `${cleanTopic} - Opção 5 (Conversacional)`,
+          title: `${cleanTopic} - Opção 4 (Conversacional)`,
           content: `Oi, {primeiro_nome}! {saudacao}! ${intro}Espero que esteja tudo bem. Queria te passar este comunicado: ${cleanBody} Conte com nosso suporte sempre!`,
           category: cleanTopic,
         }
@@ -125,64 +112,6 @@ export const TopicGeneratorModal: React.FC<TopicGeneratorModalProps> = ({
     setSelectedIndices((prev) =>
       prev.includes(idx) ? prev.filter((i) => i !== idx) : [...prev, idx]
     );
-  };
-
-  // Salva diretamente a mensagem original digitada pelo usuário, sem gerar ou salvar variações
-  const handleSaveOriginalDirectly = () => {
-    const cleanTopic = topicName.trim() || 'Meu Tópico';
-    const cleanHook = hook.trim();
-    if (!cleanHook) {
-      setErrorMsg('Por favor, preencha o campo Frase de Impacto com o texto da sua mensagem.');
-      return;
-    }
-    const intro = presentation.trim() ? `${presentation.trim()}: ` : '';
-    const originalContent = cleanHook.includes('{primeiro_nome}') || cleanHook.includes('{nome}')
-      ? `${intro}${cleanHook}`
-      : `{saudacao}, {primeiro_nome}! ${intro}${cleanHook}`;
-
-    const originalTemplate = {
-      title: `${cleanTopic} - Mensagem Original`,
-      content: originalContent,
-      category: cleanTopic,
-    };
-
-    onSaveTopic(cleanTopic, [originalTemplate]);
-    handleReset();
-    onClose();
-  };
-
-  // Salva apenas a mensagem original a partir da lista gerada (índice 0)
-  const handleSaveOriginalFromResults = () => {
-    if (generatedResults.length === 0) return;
-    const cleanTopic = topicName.trim() || 'Meu Tópico';
-    const originalTemplate = generatedResults[0];
-    onSaveTopic(cleanTopic, [originalTemplate]);
-    handleReset();
-    onClose();
-  };
-
-  // Carrega apenas a mensagem original na lista para o usuário revisar e aprovar
-  const handlePreviewOriginalOnly = () => {
-    const cleanTopic = topicName.trim() || 'Meu Tópico';
-    const cleanHook = hook.trim();
-    if (!cleanHook) {
-      setErrorMsg('Por favor, preencha o campo Frase de Impacto com o texto da mensagem.');
-      return;
-    }
-    const intro = presentation.trim() ? `${presentation.trim()}: ` : '';
-    const originalContent = cleanHook.includes('{primeiro_nome}') || cleanHook.includes('{nome}')
-      ? `${intro}${cleanHook}`
-      : `{saudacao}, {primeiro_nome}! ${intro}${cleanHook}`;
-
-    const singleTemplate = {
-      title: `${cleanTopic} - Mensagem Principal`,
-      content: originalContent,
-      category: cleanTopic,
-    };
-
-    setGeneratedResults([singleTemplate]);
-    setSelectedIndices([0]);
-    setErrorMsg('');
   };
 
   const handleUpdateItemContent = (index: number, newText: string) => {
@@ -322,17 +251,6 @@ export const TopicGeneratorModal: React.FC<TopicGeneratorModalProps> = ({
             <div className="pt-2 flex flex-col gap-2.5">
               <button
                 type="button"
-                onClick={handleSaveOriginalDirectly}
-                disabled={loading || !topicName.trim() || !hook.trim()}
-                className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold py-3.5 rounded-xl text-xs uppercase tracking-widest transition-all shadow-lg flex items-center justify-center space-x-2 cursor-pointer"
-                title="Salvar apenas a mensagem original digitada como modelo deste tópico, sem variações criadas"
-              >
-                <CheckSquare className="w-4 h-4" />
-                <span>Salvar Apenas Mensagem Original</span>
-              </button>
-
-              <button
-                type="button"
                 onClick={handleGenerate}
                 disabled={loading || !topicName.trim() || !hook.trim()}
                 className="w-full bg-[#A88B4B] hover:bg-[#C5A968] disabled:opacity-50 text-[#0A0C10] font-bold py-3.5 rounded-xl text-xs uppercase tracking-widest transition-all shadow-lg flex items-center justify-center space-x-2 cursor-pointer"
@@ -348,17 +266,6 @@ export const TopicGeneratorModal: React.FC<TopicGeneratorModalProps> = ({
                     <span>Gerar {quantity} Variações com IA</span>
                   </>
                 )}
-              </button>
-
-              <button
-                type="button"
-                onClick={handlePreviewOriginalOnly}
-                disabled={loading || !topicName.trim() || !hook.trim()}
-                className="w-full bg-[#1F2229] hover:bg-[#2A2D35] text-gray-300 hover:text-white border border-[#2A2D35] disabled:opacity-50 font-bold py-2.5 rounded-xl text-xs uppercase tracking-widest transition-all flex items-center justify-center space-x-2 cursor-pointer"
-                title="Carrega apenas a mensagem original na lista ao lado para você aprovar"
-              >
-                <MessageSquare className="w-3.5 h-3.5 text-gray-400" />
-                <span>Carregar Somente Original na Lista (1)</span>
               </button>
             </div>
 
@@ -422,15 +329,12 @@ export const TopicGeneratorModal: React.FC<TopicGeneratorModalProps> = ({
               ) : (
                 generatedResults.map((tmpl, idx) => {
                   const isSelected = selectedIndices.includes(idx);
-                  const isOriginal = idx === 0;
                   return (
                     <div
                       key={idx}
                       className={`p-3.5 bg-[#0A0C10] border rounded-xl transition-all ${
                         isSelected
-                          ? isOriginal
-                            ? 'border-emerald-500/60 bg-emerald-950/10'
-                            : 'border-purple-500/60 bg-purple-950/10'
+                          ? 'border-purple-500/60 bg-purple-950/10'
                           : 'border-[#1F2229] opacity-70 hover:opacity-100'
                       }`}
                     >
@@ -442,23 +346,12 @@ export const TopicGeneratorModal: React.FC<TopicGeneratorModalProps> = ({
                             onChange={() => toggleSelectIndex(idx)}
                             className="w-4 h-4 rounded border-gray-700 bg-[#0A0C10] text-amber-500 focus:ring-amber-400"
                           />
-                          <span className={`text-[10px] font-bold uppercase tracking-wider ${isOriginal ? 'text-emerald-400' : 'text-purple-400'}`}>
-                            {isOriginal ? '⭐ Mensagem 1 (Texto Original)' : `Opção ${idx + 1} (Variação IA)`}
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-purple-400">
+                            Opção {idx + 1} (Variação IA)
                             {isSelected ? ' [Aprovada]' : ' [Não Selecionada]'}
                           </span>
                         </label>
                         <div className="flex items-center space-x-1.5">
-                          {isOriginal && (
-                            <button
-                              type="button"
-                              onClick={handleSaveOriginalFromResults}
-                              className="px-2.5 py-1 text-emerald-300 hover:text-white bg-emerald-600/20 hover:bg-emerald-600 rounded-md transition-all flex items-center space-x-1 border border-emerald-500/30 cursor-pointer"
-                              title="Salvar apenas esta mensagem original"
-                            >
-                              <CheckSquare className="w-3 h-3" />
-                              <span className="text-[10px] font-bold uppercase">Salvar Só Original</span>
-                            </button>
-                          )}
                           <button
                             type="button"
                             onClick={() => removeResult(idx)}
@@ -488,18 +381,9 @@ export const TopicGeneratorModal: React.FC<TopicGeneratorModalProps> = ({
                 <div className="flex flex-col sm:flex-row gap-2">
                   <button
                     type="button"
-                    onClick={handleSaveOriginalFromResults}
-                    className="flex-1 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 font-bold py-2.5 px-3 rounded-xl text-xs uppercase tracking-widest transition-all flex items-center justify-center space-x-1.5 cursor-pointer shadow-sm"
-                    title="Salva apenas a mensagem original, descartando as variações criadas pela IA"
-                  >
-                    <CheckSquare className="w-4 h-4" />
-                    <span>Salvar Apenas Original</span>
-                  </button>
-                  <button
-                    type="button"
                     onClick={handleSaveSelected}
                     disabled={selectedIndices.length === 0}
-                    className="flex-1 bg-[#A88B4B] hover:bg-[#C5A968] disabled:opacity-40 disabled:cursor-not-allowed text-[#0A0C10] font-bold py-2.5 px-3 rounded-xl text-xs uppercase tracking-widest transition-all shadow-lg flex items-center justify-center space-x-1.5 cursor-pointer"
+                    className="w-full bg-[#A88B4B] hover:bg-[#C5A968] disabled:opacity-40 disabled:cursor-not-allowed text-[#0A0C10] font-bold py-2.5 px-3 rounded-xl text-xs uppercase tracking-widest transition-all shadow-lg flex items-center justify-center space-x-1.5 cursor-pointer"
                   >
                     <Check className="w-4 h-4" />
                     <span>Salvar Selecionadas ({selectedIndices.length})</span>

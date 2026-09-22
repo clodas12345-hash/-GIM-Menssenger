@@ -16,6 +16,17 @@ export function getTimeBasedGreeting(dateObj: Date = new Date()): string {
   }
 }
 
+// Add these helper functions for message count tracking
+export function getMessageCount(contactId: string): number {
+  const count = localStorage.getItem(`sentCount_${contactId}`);
+  return count ? parseInt(count, 10) : 0;
+}
+
+export function incrementMessageCount(contactId: string): void {
+  const count = getMessageCount(contactId);
+  localStorage.setItem(`sentCount_${contactId}`, (count + 1).toString());
+}
+
 export function replaceTemplateVariables(
   templateText: string,
   contact: Partial<Contact>,
@@ -28,7 +39,11 @@ export function replaceTemplateVariables(
   const cleanFirstName = extractCleanFirstName(rawName);
   const cleanFullName = extractCleanFullName(rawName) || cleanFirstName;
 
-  const firstNameToUse = cleanFirstName;
+  const count = contact.id ? getMessageCount(contact.id) : 0;
+  // Use full name for 1st (count 0), 3rd (count 2), 5th (count 4), ... messages
+  const shouldUseFullName = (count + 1) % 2 !== 0;
+
+  const firstNameToUse = shouldUseFullName ? cleanFullName : cleanFirstName;
   const fullNameToUse = cleanFullName;
 
   const company = contact.company?.trim() || 'sua empresa';

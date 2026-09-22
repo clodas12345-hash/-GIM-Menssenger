@@ -23,7 +23,7 @@ import {
   Activity,
   AlertTriangle
 } from 'lucide-react';
-import { replaceTemplateVariables, buildWhatsAppLink, openWhatsAppLink, safeConfirm, cleanChipName } from '../utils/whatsapp';
+import { replaceTemplateVariables, buildWhatsAppLink, openWhatsAppLink, safeConfirm, cleanChipName, incrementMessageCount } from '../utils/whatsapp';
 import { playSuccessChime } from '../utils/audio';
 import { toDatetimeLocal } from '../utils/dateParser';
 import { getTodayDateString } from '../utils/storage';
@@ -336,6 +336,7 @@ export const DispatcherModal = React.forwardRef((props: any, ref) => {
     }
 
     if (isSuccess) {
+      incrementMessageCount(contactToUse.id);
       setSessionCounts(prev => {
         const isSuporte = (cChipName || '').toLowerCase().includes('suporte') || (cChipName || '').toLowerCase().includes('support');
         if (isSuporte) return { ...prev, suporte: prev.suporte + 1 };
