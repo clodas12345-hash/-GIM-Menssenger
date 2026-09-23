@@ -1,6 +1,7 @@
 import { Contact, MessageTemplate, ScheduledCampaign, DispatchLogItem, ContactGroup, AppSettings, ProjectArchive } from '../types';
 import { USER_SAVED_CONTACTS } from '../data/userContacts';
-import { detectGenderFromName } from './gender';
+import { detectGenderFromName, isGenericOrInvalidName } from './gender';
+import { processContactName } from './contactProcessor';
 
 const STORAGE_KEYS = {
   CONTACTS: 'zap_contacts_v1',
@@ -957,6 +958,36 @@ export function getContacts(): Contact[] {
     if (!c.gender) {
       c.gender = detectGenderFromName(c.name || '');
       updated = true;
+    }
+
+    // Auto-repair corrupted names of existing contacts (e.g. name = "CG10" or "150" or generic invalid name)
+    const currentName = (c.name || '').trim();
+    const isNameInvalid = !currentName || 
+                          isGenericOrInvalidName(currentName) || 
+                          /^(cg\d*|r?\$?\d+|\d+\$|moto|carro|pop|99moto|99pop|99|elegivel|inativo|ativo|novo|falta\d*|sem_?nome|contato\d*|lead\d*|grupo\d*)$/i.test(currentName) ||
+                          currentName.toUpperCase() === 'CONTACT' ||
+                          currentName.toUpperCase() === 'CONTATO' ||
+                          currentName.toUpperCase().startsWith('CG');
+
+    if (isNameInvalid) {
+      // Look for the original raw name tag in categoryDetails or notes
+      let rawTag = c.categoryDetails?.tag || '';
+      if (!rawTag && c.notes) {
+        const tagMatch = c.notes.match(/Tag:\s*([^•\r\n]+)/i);
+        if (tagMatch) {
+          rawTag = tagMatch[1];
+        }
+      }
+
+      if (rawTag && rawTag.trim()) {
+        const processed = processContactName(rawTag);
+        const repairedName = processed.cleanName;
+        // Verify repairedName is valid and different from current name
+        if (repairedName && repairedName !== 'Contato Sem Nome' && repairedName !== currentName && !isGenericOrInvalidName(repairedName)) {
+          c = { ...c, name: repairedName, gender: detectGenderFromName(repairedName) };
+          updated = true;
+        }
+      }
     }
 
     // Ensure ID is present
