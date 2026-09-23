@@ -51,7 +51,11 @@ export const PasteContactsModal: React.FC<PasteContactsModalProps> = ({
   // Intelligent Promotion & Chip Parser for any contact line
   const analyzePromotionAndChip = (rawNameStr: string, fullLineStr: string): ParsedPromoResult => {
     const rawUpper = (rawNameStr + ' ' + fullLineStr).toUpperCase();
-    let cleanName = rawNameStr.replace(/^\.+/, '').trim();
+    
+    // Use the super robust unified processContactName to extract the actual human name and eliminate tags perfectly!
+    const processedInfo = processContactName(rawNameStr);
+    let cleanName = processedInfo.cleanName;
+    
     let groupName = 'Agenda de Contatos (Sem Campanha)';
     let notes = '⚠️ Sem campanha disponível. O motorista não possui benefício ativo. Confirmar nome antes de ofertar benefício.';
     let chipId = 'chip_1';
@@ -98,10 +102,6 @@ export const PasteContactsModal: React.FC<PasteContactsModalProps> = ({
         targetCg: targetGroup,
         tag: rawNameStr
       };
-
-      const match = rawNameStr.match(/^\.?([^_]+)_(?:CORR|CORRECAO|AJUSTE)/i);
-      if (match) cleanName = match[1].trim();
-      else if (rawNameStr.includes('_')) cleanName = rawNameStr.split('_')[0].trim();
     }
     // 2. Check Corre e Ganhe (CG 05/50, CG 10/100, etc.)
     else if (rawUpper.includes('CG') || rawUpper.includes('CORRE E GANHE') || rawUpper.includes('CORRA E GANHE') || rawUpper.includes('CG$') || rawUpper.includes('_CG')) {
@@ -122,10 +122,6 @@ export const PasteContactsModal: React.FC<PasteContactsModalProps> = ({
         promoBadgeColor = 'bg-emerald-600/25 text-emerald-200 border-emerald-500/50';
         customFields = { 'Meta Corridas': '10 corridas', 'Bônus': `R$ ${value}`, 'Campanha': 'Corre e Ganhe' };
         categoryDetails = { type: 'corre_e_ganhe', value: `R$ ${value}`, target: '10 corridas', tag: rawNameStr };
-        
-        // Clean name extraction for .T18_Name_CG... format
-        const match = rawNameStr.match(/^\.?([^_]+)_([^_]+)/);
-        if (match) cleanName = match[2].replace(/_/g, ' ').trim();
       } else if (cgNum === '05') {
         const value = cgVal || '100';
         chipId = 'chip_1'; // Standardizing all CG to Business
@@ -136,9 +132,6 @@ export const PasteContactsModal: React.FC<PasteContactsModalProps> = ({
         promoBadgeColor = 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40';
         customFields = { 'Meta Corridas': '5 corridas', 'Bônus': `R$ ${value}`, 'Campanha': 'Corre e Ganhe' };
         categoryDetails = { type: 'corre_e_ganhe', value: `R$ ${value}`, target: '5 corridas', tag: rawNameStr };
-        
-        const match = rawNameStr.match(/^\.?([^_]+)_([^_]+)/);
-        if (match) cleanName = match[2].replace(/_/g, ' ').trim();
       } else {
         // Generic CG with date or value
         const dateMatch = rawNameStr.match(/(\d{2}\/\d{2})/);
@@ -151,9 +144,6 @@ export const PasteContactsModal: React.FC<PasteContactsModalProps> = ({
         promoBadgeColor = 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40';
         customFields = { 'Campanha': 'Corre e Ganhe', 'Bônus': valStr ? `R$ ${valMatch![1]}` : 'Bônus' };
         categoryDetails = { type: 'corre_e_ganhe', value: valStr, tag: rawNameStr };
-        if (rawNameStr.includes('_')) {
-          cleanName = rawNameStr.split('_')[0].trim();
-        }
       }
     } 
     // 3. Check Taxa Zero (TX0 / Tx0 / Taxa Zero)
@@ -175,10 +165,8 @@ export const PasteContactsModal: React.FC<PasteContactsModalProps> = ({
         deadline: dateMatch ? dateMatch[1] : undefined,
         tag: rawNameStr
       };
-      if (rawNameStr.includes('_')) {
-        cleanName = rawNameStr.split('_')[0].trim();
-      }
-    } 
+    }
+ 
     // 4. Sem promoção (Agenda comum)
     else {
       chipId = 'chip_2';

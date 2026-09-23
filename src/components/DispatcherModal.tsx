@@ -624,6 +624,17 @@ export const DispatcherModal = React.forwardRef((props: any, ref) => {
           <div className="p-4 flex flex-col gap-4">
             {!pendingConfirmState ? (
               <div className="flex flex-col gap-3">
+                {/* Destinatário Info Card */}
+                <div className="bg-[#121316] border border-[#262629] px-4 py-2.5 rounded-xl flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <span className="text-[9px] text-gray-400 block uppercase font-black tracking-widest">Destinatário</span>
+                    <h4 className="text-emerald-400 text-xs font-extrabold truncate">{currentContact?.name || 'Sem Nome'}</h4>
+                  </div>
+                  <span className="text-[10px] text-gray-300 bg-[#0E0E10] px-2 py-0.5 rounded border border-[#262629] font-bold font-mono">
+                    {currentContact?.phone ? (currentContact.phone.startsWith('55') ? currentContact.phone : `55${currentContact.phone}`) : 'Sem Telefone'}
+                  </span>
+                </div>
+
                 <div className="bg-[#161619] border border-[#262629] p-4 rounded-xl space-y-2">
                   {campaign.randomTopicTemplates && campaign.randomTopicTemplates.length > 0 && (
                     <div className="flex items-center justify-between pb-2 border-b border-[#262629]">
