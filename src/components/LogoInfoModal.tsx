@@ -53,6 +53,13 @@ export const LogoInfoModal: React.FC<LogoInfoModalProps> = ({ isOpen, onClose })
             src="/logo.jpg" 
             alt="GKD Mobility Logo" 
             className="w-full h-auto object-contain block m-0 p-0 select-none" 
+            onError={(e) => {
+              const target = e.currentTarget;
+              if (!target.dataset.triedFallback) {
+                target.dataset.triedFallback = 'true';
+                target.src = '/Mensseger.png';
+              }
+            }}
             referrerPolicy="no-referrer" 
           />
         </div>

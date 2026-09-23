@@ -100,9 +100,16 @@ export default function App() {
   const [projectArchives, setProjectArchives] = useState<ProjectArchive[]>(() => getProjectArchives());
   const [isAppReady] = useState<boolean>(true);
 
-  // One-time cleanup requested by user: Remove chips, clear logs/trash
+  // Ensure totalSentCount is synced on load so total sent never drops
   useEffect(() => {
-    // Cleanup removed as requested to avoid wiping chip assignments
+    const currentSentLogs = logs.filter(l => l.status === 'enviado').length;
+    const currentTotal = currentSentLogs + (settings.historicalSentCount || 0);
+    if (settings.totalSentCount === undefined || settings.totalSentCount < currentTotal) {
+      updateSettingsState({
+        ...settings,
+        totalSentCount: Math.max(settings.totalSentCount || 0, currentTotal)
+      });
+    }
   }, []);
 
   // One-time Reset Business chip counter as requested by user
@@ -644,17 +651,21 @@ export default function App() {
       
       // Save pruned "enviado" count to historicalSentCount so the dashboard doesn't lose data
       const prunedSentCount = prunedOlder.filter(l => l.status === 'enviado').length;
-      
-      if (prunedSentCount > 0) {
+      const prunedLogs = [...keptOlder, ...recentLogs];
+      const keptSentCount = prunedLogs.filter(l => l.status === 'enviado').length;
+      const newHist = (settings.historicalSentCount || 0) + prunedSentCount;
+      const newTotal = Math.max(settings.totalSentCount || 0, newHist + keptSentCount);
+
+      if (prunedSentCount > 0 || settings.totalSentCount !== newTotal) {
         const updatedSettings = {
           ...settings,
-          historicalSentCount: (settings.historicalSentCount || 0) + prunedSentCount
+          historicalSentCount: newHist,
+          totalSentCount: newTotal,
         };
         setSettings(updatedSettings);
         saveSettings(updatedSettings);
       }
       
-      const prunedLogs = [...keptOlder, ...recentLogs];
       setLogs(prunedLogs);
       saveDispatchLogs(prunedLogs);
       return;
@@ -1651,11 +1662,18 @@ export default function App() {
     });
 
     if (logItem) {
-      setLogs((prevLogs) => {
-        const newLogs = [logItem, ...prevLogs];
-        saveDispatchLogs(newLogs);
-        return newLogs;
-      });
+      if (logItem.status === 'enviado') {
+        setSettings((prev) => {
+          const currentSent = logs.filter(l => l.status === 'enviado').length + 1;
+          const currentTotal = currentSent + (prev.historicalSentCount || 0);
+          const newTotal = Math.max((prev.totalSentCount || 0) + 1, currentTotal);
+          const updated = { ...prev, totalSentCount: newTotal };
+          saveSettings(updated);
+          return updated;
+        });
+      }
+      const newLogs = [logItem, ...logs];
+      updateLogsState(newLogs);
     }
   };
 

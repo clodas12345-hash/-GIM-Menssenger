@@ -79,6 +79,13 @@ export const Navbar: React.FC<NavbarProps> = React.memo(({
                 src="/logo.jpg" 
                 alt="GKD Mobility Logo" 
                 className="w-full h-full object-cover block" 
+                onError={(e) => {
+                  const target = e.currentTarget;
+                  if (!target.dataset.triedFallback) {
+                    target.dataset.triedFallback = 'true';
+                    target.src = '/Mensseger.png';
+                  }
+                }}
                 referrerPolicy="no-referrer" 
               />
             </div>

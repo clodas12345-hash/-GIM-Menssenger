@@ -734,7 +734,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   sortOldestContactedFirst: true,
   showOnlySkipped: false,
   hideAlreadyScheduled: false,
-  historicalSentCount: 0
+  historicalSentCount: 0,
+  totalSentCount: 0
 };
 
 // Storage Helpers
@@ -768,19 +769,26 @@ export function saveToStorage<T>(key: string, value: T): boolean {
   } catch (err: any) {
     console.warn(`localStorage quota or error for key ${key}, attempting cleanup...`, err);
     try {
-      // Cleanup logs first if quota exceeded
-      const existingLogs = localStorage.getItem(STORAGE_KEYS.LOGS);
-      if (existingLogs) {
+      // Cleanup logs safely if quota exceeded: preserve sent count
+      const existingLogsStr = localStorage.getItem(STORAGE_KEYS.LOGS);
+      if (existingLogsStr) {
         try {
-          const parsedLogs = JSON.parse(existingLogs);
-          if (Array.isArray(parsedLogs) && parsedLogs.length > 10) {
-            localStorage.setItem(STORAGE_KEYS.LOGS, JSON.stringify(parsedLogs.slice(0, 10)));
-          } else {
-            localStorage.removeItem(STORAGE_KEYS.LOGS);
+          const parsedLogs = JSON.parse(existingLogsStr);
+          if (Array.isArray(parsedLogs) && parsedLogs.length > 200) {
+            const keptLogs = parsedLogs.slice(0, 200);
+            const discardedLogs = parsedLogs.slice(200);
+            const discardedSent = discardedLogs.filter((l: any) => l.status === 'enviado').length;
+            if (discardedSent > 0) {
+              try {
+                const curSettings = getSettings();
+                const newHist = (curSettings.historicalSentCount || 0) + discardedSent;
+                const newTotal = Math.max(curSettings.totalSentCount || 0, newHist + keptLogs.filter((l: any) => l.status === 'enviado').length);
+                saveSettings({ ...curSettings, historicalSentCount: newHist, totalSentCount: newTotal });
+              } catch {}
+            }
+            localStorage.setItem(STORAGE_KEYS.LOGS, JSON.stringify(keptLogs));
           }
-        } catch {
-          localStorage.removeItem(STORAGE_KEYS.LOGS);
-        }
+        } catch {}
       }
       // Retry setting item
       localStorage.setItem(key, jsonStr);
@@ -1239,8 +1247,17 @@ export function saveCampaigns(campaigns: ScheduledCampaign[]): void {
       console.warn('saveCampaigns: Retry failed, trimming log history...');
       try {
         const logs = getDispatchLogs();
-        if (logs.length > 20) {
-          saveToStorage(STORAGE_KEYS.LOGS, logs.slice(0, 20));
+        if (logs.length > 200) {
+          const keptLogs = logs.slice(0, 200);
+          const discardedLogs = logs.slice(200);
+          const discardedSent = discardedLogs.filter(l => l.status === 'enviado').length;
+          if (discardedSent > 0) {
+            const curSettings = getSettings();
+            const newHist = (curSettings.historicalSentCount || 0) + discardedSent;
+            const newTotal = Math.max(curSettings.totalSentCount || 0, newHist + keptLogs.filter(l => l.status === 'enviado').length);
+            saveSettings({ ...curSettings, historicalSentCount: newHist, totalSentCount: newTotal });
+          }
+          saveToStorage(STORAGE_KEYS.LOGS, keptLogs);
         }
       } catch {}
       saveToStorage(STORAGE_KEYS.CAMPAIGNS, optimized);
@@ -1256,7 +1273,24 @@ export function getDispatchLogs(): DispatchLogItem[] {
 
 export function saveDispatchLogs(logs: DispatchLogItem[]): void {
   // Cap logs to 1000 most recent items to avoid localStorage quota errors & freeze
-  const cappedLogs = logs.length > 1000 ? logs.slice(0, 1000) : logs;
+  let cappedLogs = logs;
+  if (logs.length > 1000) {
+    const keptLogs = logs.slice(0, 1000);
+    const discardedLogs = logs.slice(1000);
+    const discardedSent = discardedLogs.filter(l => l.status === 'enviado').length;
+    if (discardedSent > 0) {
+      try {
+        const curSettings = getSettings();
+        const newHist = (curSettings.historicalSentCount || 0) + discardedSent;
+        const currentKeptSent = keptLogs.filter(l => l.status === 'enviado').length;
+        const newTotal = Math.max(curSettings.totalSentCount || 0, newHist + currentKeptSent);
+        saveSettings({ ...curSettings, historicalSentCount: newHist, totalSentCount: newTotal });
+      } catch (err) {
+        console.error('Failed to update settings in saveDispatchLogs:', err);
+      }
+    }
+    cappedLogs = keptLogs;
+  }
   logsCache = cappedLogs;
   saveToStorage(STORAGE_KEYS.LOGS, cappedLogs);
 }

@@ -81,8 +81,9 @@ export const DashboardView: React.FC<DashboardViewProps> = React.memo(({
   const totalSent = useMemo(() => {
     if (!isAppReady) return 0;
     const currentSent = logs.filter((l) => l.status === 'enviado').length;
-    return currentSent + (settings.historicalSentCount || 0);
-  }, [logs, settings.historicalSentCount, isAppReady]);
+    const calculatedTotal = currentSent + (settings.historicalSentCount || 0);
+    return Math.max(settings.totalSentCount || 0, calculatedTotal);
+  }, [logs, settings.historicalSentCount, settings.totalSentCount, isAppReady]);
 
   const [deletingId, setDeletingId] = React.useState<string | null>(null);
 

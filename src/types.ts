@@ -150,4 +150,5 @@ export interface AppSettings {
   showOnlySkipped?: boolean;
   hideAlreadyScheduled?: boolean;
   historicalSentCount?: number;
+  totalSentCount?: number;
 }

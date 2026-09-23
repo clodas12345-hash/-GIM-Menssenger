@@ -10,7 +10,19 @@ export const GKDLogo: React.FC<GKDLogoProps> = ({ className = '', variant = 'com
   if (variant === 'compact') {
     return (
       <div className={`relative flex items-center gap-2 p-0 m-0 bg-white transition-colors rounded-lg border border-slate-200/60 shrink-0 select-none overflow-hidden ${className}`}>
-        <img src="/logo.jpg" alt="GKD Mobility Logo" className="w-8 h-8 object-cover block" referrerPolicy="no-referrer" />
+        <img 
+          src="/logo.jpg" 
+          alt="GKD Mobility Logo" 
+          className="w-8 h-8 object-cover block" 
+          onError={(e) => {
+            const target = e.currentTarget;
+            if (!target.dataset.triedFallback) {
+              target.dataset.triedFallback = 'true';
+              target.src = '/Mensseger.png';
+            }
+          }}
+          referrerPolicy="no-referrer" 
+        />
         <span className="text-[11px] font-bold text-slate-800 tracking-wider uppercase pr-2">GKD Mobility</span>
       </div>
     );
@@ -18,7 +30,19 @@ export const GKDLogo: React.FC<GKDLogoProps> = ({ className = '', variant = 'com
 
   return (
     <div className={`bg-white rounded-2xl p-0 m-0 shadow-sm border border-slate-200/80 text-slate-900 flex flex-col items-center text-center select-none overflow-hidden ${className}`}>
-      <img src="/logo.jpg" alt="GKD Mobility Logo" className="w-full h-24 object-cover block" referrerPolicy="no-referrer" />
+      <img 
+        src="/logo.jpg" 
+        alt="GKD Mobility Logo" 
+        className="w-full h-24 object-cover block" 
+        onError={(e) => {
+          const target = e.currentTarget;
+          if (!target.dataset.triedFallback) {
+            target.dataset.triedFallback = 'true';
+            target.src = '/Mensseger.png';
+          }
+        }}
+        referrerPolicy="no-referrer" 
+      />
       <div className="p-4 flex flex-col items-center">
         <div className="flex items-center gap-2">
           <span className="text-xl font-black tracking-tight text-slate-900">GKD Mobility</span>
