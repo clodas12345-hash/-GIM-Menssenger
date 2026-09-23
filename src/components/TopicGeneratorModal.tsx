@@ -107,6 +107,55 @@ export const TopicGeneratorModal: React.FC<TopicGeneratorModalProps> = ({
     }));
   };
 
+  const normalizePlaceholders = (text: string, originalHook: string): string => {
+    if (!text) return '';
+    let processed = text;
+
+    // 1. First, normalize common placeholders
+    // Name placeholders
+    const namePattern = /\{\{\s*(primeiro_nome|primeironome|nome|name|first_name|firstname)\s*\}\}|\{\s*(primeiro_nome|primeironome|nome|name|first_name|firstname)\s*\}|\[\s*(primeiro_nome|primeironome|primeiro\s+nome|nome|name|first_name|firstname|nome\s+do\s+contato|nome\s+do\s+motorista|contato|motorista)\s*\]|<\s*(primeiro_nome|primeironome|nome|name|first_name|firstname)\s*>|%\s*(primeiro_nome|primeironome|nome|name|first_name|firstname)\s*%/gi;
+    processed = processed.replace(namePattern, '{primeiro_nome}');
+
+    // Greeting placeholders
+    const greetingPattern = /\{\{\s*sauda[çc][ãa]o(?:_horario)?\s*\}\}|\{\s*sauda[çc][ãa]o(?:_horario)?\s*\}|\[\s*sauda[çc][ãa]o(?:\s+do\s+hor[áa]rio)?\s*\]|<\s*sauda[çc][ãa]o(?:_horario)?\s*>|%\s*sauda[çc][ãa]o(?:_horario)?\s*%/gi;
+    processed = processed.replace(greetingPattern, '{saudacao}');
+
+    // 2. If the AI generated literal sample names, normalize them
+    processed = processed.replace(/\b(Olá|Oi|Bom dia|Boa tarde|Boa noite)[,!\s]+(Fulano|Maria|João|Cláudio|Motorista|Parceiro|Amigo)\b/gi, '{saudacao}, {primeiro_nome}');
+    
+    // 3. Prevent duplicate placeholders
+    processed = processed.replace(/\{saudacao\}[,!\s]*\{saudacao\}/gi, '{saudacao}');
+    processed = processed.replace(/\{primeiro_nome\}[,!\s]*\{primeiro_nome\}/gi, '{primeiro_nome}');
+
+    // 4. Ensure variables from original hook are kept
+    const originalHasName = /\{primeiro_nome\}|\{nome\}|\[nome\]/i.test(originalHook);
+    const originalHasGreeting = /\{saudacao\}|\{saudação\}|\[saudação\]|\[saudacao\]/i.test(originalHook);
+
+    const processedHasName = processed.includes('{primeiro_nome}');
+    const processedHasGreeting = processed.includes('{saudacao}');
+
+    if (originalHasGreeting && !processedHasGreeting) {
+      processed = `{saudacao}, ${processed}`;
+    }
+    if (originalHasName && !processedHasName) {
+      if (processed.startsWith('{saudacao}')) {
+        processed = processed.replace('{saudacao}', '{saudacao}, {primeiro_nome}');
+      } else {
+        processed = `{primeiro_nome}! ${processed}`;
+      }
+    }
+
+    // Clean up punctuation caused by replacements
+    processed = processed
+      .replace(/,\s*,/g, ',')
+      .replace(/!\s*!/g, '!')
+      .replace(/\?\s*\?/g, '?')
+      .replace(/,\s*!/g, '!')
+      .replace(/;\s*;/g, ';');
+
+    return processed;
+  };
+
   const handleGenerate = async () => {
     if (!topicName.trim() || !hook.trim()) {
       setErrorMsg('Por favor, preencha o nome do tópico e a frase de impacto.');
@@ -138,6 +187,7 @@ export const TopicGeneratorModal: React.FC<TopicGeneratorModalProps> = ({
           return {
             ...t,
             title: t.title || `${cleanTopic} - Opção ${i + 1}`,
+            content: normalizePlaceholders(t.content || '', cleanHook),
             category: cleanTopic,
           };
         });
@@ -155,7 +205,10 @@ export const TopicGeneratorModal: React.FC<TopicGeneratorModalProps> = ({
       }
     } catch (err: any) {
       console.warn('Usando gerador inteligente local:', err);
-      const localFallback = generateLocalVariations(cleanTopic, cleanHook, presentation, quantity);
+      const localFallback = generateLocalVariations(cleanTopic, cleanHook, presentation, quantity).map(t => ({
+        ...t,
+        content: normalizePlaceholders(t.content, cleanHook)
+      }));
       setGeneratedResults(localFallback);
       setSelectedIndices(localFallback.map((_, i) => i));
     } finally {
