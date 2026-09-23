@@ -92,10 +92,9 @@ export function replaceTemplateVariables(
   const companyPattern = /\{\{\s*empresa\s*\}\}|\{\s*empresa\s*\}|\[\s*empresa\s*\]/gi;
   processed = processed.replace(companyPattern, company);
 
-  // 5. Replace Greeting: {{saudacao}}, {saudacao}, [saudacao]
-  const greetingPattern = /\{\{\s*saudacao\s*\}\}|\{\s*saudacao\s*\}|\[\s*saudacao\s*\]/gi;
+  // 5. Replace Greeting: {{saudacao}}, {saudacao}, [saudacao], {saudação}, [Saudação], [Saudação do Horário], etc.
+  const greetingPattern = /\{\{\s*sauda[çc][ãa]o(?:_horario)?\s*\}\}|\{\s*sauda[çc][ãa]o(?:_horario)?\s*\}|\[\s*sauda[çc][ãa]o(?:\s+do\s+hor[áa]rio)?\s*\]|<\s*sauda[çc][ãa]o(?:_horario)?\s*>|%\s*sauda[çc][ãa]o(?:_horario)?\s*%/gi;
   processed = processed.replace(greetingPattern, greeting);
-  processed = processed.replace(/\bbom dia\b|\bboa tarde\b|\bboa noite\b/gi, greeting);
 
   // 6. Replace Date, Time, Email, Group, Gender, Mentor, Vehicle
   processed = processed

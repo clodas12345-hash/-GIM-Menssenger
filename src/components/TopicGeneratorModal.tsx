@@ -26,6 +26,87 @@ export const TopicGeneratorModal: React.FC<TopicGeneratorModalProps> = ({
 
   if (!isOpen) return null;
 
+  const generateLocalVariations = (
+    cleanTopic: string,
+    cleanHook: string,
+    presentation: string,
+    reqQty: number
+  ) => {
+    const intro = presentation.trim() ? `${presentation.trim()}: ` : '';
+    const cleanBody = cleanHook
+      .replace(/^(\{saudacao\}|\{saudação\}|\{primeiro_nome\}|\{nome\}|olá|oi|bom dia|boa tarde|boa noite)[,!\s]*/i, '')
+      .trim() || cleanHook;
+
+    const variationTemplates = [
+      {
+        tag: 'Direta e Objetiva',
+        content: `Olá, {primeiro_nome}! {saudacao}! ${intro}Passando para te avisar: ${cleanBody} Se precisar de qualquer ajuda, conte comigo!`
+      },
+      {
+        tag: 'Cordial e Preventiva',
+        content: `{saudacao}, {primeiro_nome}! Tudo bem? ${intro}Gostaria de compartilhar uma informação importante: ${cleanBody} Estamos 100% à disposição por aqui!`
+      },
+      {
+        tag: 'Ágil e Prática',
+        content: `{primeiro_nome}, {saudacao}! ${intro}Lembrete rápido para você: ${cleanBody} Qualquer dúvida é só me chamar!`
+      },
+      {
+        tag: 'Conversacional e Atenciosa',
+        content: `Oi, {primeiro_nome}! {saudacao}! ${intro}Espero que esteja tudo bem. Queria te passar este comunicado: ${cleanBody} Conte com nosso suporte sempre!`
+      },
+      {
+        tag: 'Foco na Oportunidade',
+        content: `{saudacao}, {primeiro_nome}! ${intro}Atenção para esta oportunidade incrível: ${cleanBody} Não deixe de aproveitar hoje mesmo!`
+      },
+      {
+        tag: 'Informativa e Clara',
+        content: `Olá {primeiro_nome}, {saudacao}! ${intro}Aviso importante para você: ${cleanBody} Se precisar de orientação, estou à disposição.`
+      },
+      {
+        tag: 'Lembrete Amigável',
+        content: `Oi {primeiro_nome}! {saudacao}! ${intro}Passando rápido para lembrar: ${cleanBody} Dúvidas? Fale comigo!`
+      },
+      {
+        tag: 'Estratégica e Prioritária',
+        content: `{saudacao}, {primeiro_nome}! ${intro}Recado prioritário: ${cleanBody} Bora aproveitar essa oportunidade?`
+      },
+      {
+        tag: 'Motivacional e Positiva',
+        content: `Olá, {primeiro_nome}! {saudacao}! ${intro}Excelente dia pra você! Olha só: ${cleanBody} Sucesso e ótimos resultados!`
+      },
+      {
+        tag: 'Exclusiva e Personalizada',
+        content: `{saudacao}, {primeiro_nome}! ${intro}Selecionamos esta mensagem especial para você: ${cleanBody} Qualquer ajuda extra, me avise!`
+      },
+      {
+        tag: 'Urgente e Relevante',
+        content: `Atenção, {primeiro_nome}! {saudacao}! ${intro}Informação relevante: ${cleanBody} Aproveite enquanto está disponível!`
+      },
+      {
+        tag: 'Proativa e Direta',
+        content: `Oi, {primeiro_nome}! {saudacao}! ${intro}Estou passando para te manter atualizado: ${cleanBody} Conte comigo no que precisar!`
+      },
+      {
+        tag: 'Suporte e Parceria',
+        content: `{saudacao}, {primeiro_nome}! ${intro}Como seu parceiro por aqui, venho te lembrar: ${cleanBody} Qualquer dúvida, estou online!`
+      },
+      {
+        tag: 'Ação Rápida',
+        content: `Olá {primeiro_nome}! {saudacao}! ${intro}Recado de ação rápida: ${cleanBody} Vamos em frente?`
+      },
+      {
+        tag: 'Fechamento Eficiente',
+        content: `{saudacao}, {primeiro_nome}! ${intro}Último lembrete: ${cleanBody} Fico no seu aguardo para te ajudar!`
+      }
+    ];
+
+    return variationTemplates.slice(0, Math.max(1, Math.min(15, reqQty))).map((vt, i) => ({
+      title: `${cleanTopic} - Opção ${i + 1} (${vt.tag})`,
+      content: vt.content,
+      category: cleanTopic,
+    }));
+  };
+
   const handleGenerate = async () => {
     if (!topicName.trim() || !hook.trim()) {
       setErrorMsg('Por favor, preencha o nome do tópico e a frase de impacto.');
@@ -36,10 +117,6 @@ export const TopicGeneratorModal: React.FC<TopicGeneratorModalProps> = ({
     setErrorMsg('');
     const cleanTopic = topicName.trim();
     const cleanHook = hook.trim();
-    const intro = presentation.trim() ? `${presentation.trim()}: ` : '';
-    const originalContent = cleanHook.includes('{primeiro_nome}') || cleanHook.includes('{nome}')
-      ? `${intro}${cleanHook}`
-      : `{saudacao}, {primeiro_nome}! ${intro}${cleanHook}`;
 
     try {
       const res = await fetch('/api/ai/generate-topic-templates', {
@@ -57,51 +134,29 @@ export const TopicGeneratorModal: React.FC<TopicGeneratorModalProps> = ({
         throw new Error(data.error || 'Erro ao comunicar com a IA');
       }
       if (data.templates && Array.isArray(data.templates) && data.templates.length > 0) {
-        const adjustedTemplates = data.templates.map((t: any, i: number) => {
+        let adjustedTemplates = data.templates.map((t: any, i: number) => {
           return {
             ...t,
             title: t.title || `${cleanTopic} - Opção ${i + 1}`,
             category: cleanTopic,
           };
         });
+
+        // If returned fewer than requested quantity, complement with local generator
+        if (adjustedTemplates.length < quantity) {
+          const localExtras = generateLocalVariations(cleanTopic, cleanHook, presentation, quantity);
+          adjustedTemplates = [...adjustedTemplates, ...localExtras.slice(adjustedTemplates.length)];
+        }
+
         setGeneratedResults(adjustedTemplates);
-        // Selecionar todas as opções geradas para revisão e aprovação do usuário
         setSelectedIndices(adjustedTemplates.map((_, i) => i));
       } else {
         throw new Error('Formato de resposta inesperado');
       }
     } catch (err: any) {
       console.warn('Usando gerador inteligente local:', err);
-      // Fallback local garantindo variações reais e fidelidade à mensagem original
-      const cleanBody = cleanHook
-        .replace(/^(\{saudacao\}|\{primeiro_nome\}|\{nome\}|olá|oi|bom dia|boa tarde|boa noite)[,!\s]*/i, '')
-        .trim() || cleanHook;
-
-      const localFallback = [
-        {
-          title: `${cleanTopic} - Opção 1 (Direta e Objetiva)`,
-          content: `Olá, {primeiro_nome}! {saudacao}! ${intro}Passando para te avisar: ${cleanBody} Se precisar de qualquer ajuda, conte comigo!`,
-          category: cleanTopic,
-        },
-        {
-          title: `${cleanTopic} - Opção 2 (Cordial e Preventiva)`,
-          content: `{saudacao}, {primeiro_nome}! Tudo bem? ${intro}Gostaria de compartilhar uma informação importante: ${cleanBody} Estamos 100% à disposição por aqui!`,
-          category: cleanTopic,
-        },
-        {
-          title: `${cleanTopic} - Opção 3 (Ágil e Prática)`,
-          content: `{primeiro_nome}, {saudacao}! ${intro}Lembrete rápido para você: ${cleanBody} Qualquer dúvida é só me chamar!`,
-          category: cleanTopic,
-        },
-        {
-          title: `${cleanTopic} - Opção 4 (Conversacional)`,
-          content: `Oi, {primeiro_nome}! {saudacao}! ${intro}Espero que esteja tudo bem. Queria te passar este comunicado: ${cleanBody} Conte com nosso suporte sempre!`,
-          category: cleanTopic,
-        }
-      ].slice(0, Math.max(1, quantity));
-
+      const localFallback = generateLocalVariations(cleanTopic, cleanHook, presentation, quantity);
       setGeneratedResults(localFallback);
-      // Selecionar todas as opções para aprovação do usuário
       setSelectedIndices(localFallback.map((_, i) => i));
     } finally {
       setLoading(false);
